@@ -1,3 +1,4 @@
+% Four drugs considered in ARes    
 classdef Drug 
     enumeration
         Propofol 
