@@ -4,12 +4,16 @@ classdef Disturbance < handle
     properties (Access = private)
         t_sim
         doh_values
-        co_values
+        hr_values
+        map_values
 
         disturbances
         min_dis_doh = 0.0
-        min_dis_co = 0.0
+        min_dis_hr = 0.0
+        min_dis_map = 0.0
         starts
+       
+        in_maintenance
 
         C50_prop_intubation = 8.69
         C50_rem_intubation = 4.95
@@ -19,7 +23,7 @@ classdef Disturbance < handle
     end
     
     methods
-        function obj = Disturbance(t_sim, disturbances)
+        function obj = Disturbance(t_sim, disturbances, in_maintenance)
         % Initialize the Disturbance class
         % Parameters:
         %   t_sim: the total simulation time
@@ -29,15 +33,20 @@ classdef Disturbance < handle
 
             obj.t_sim = t_sim;
             obj.doh_values = zeros(t_sim, 1);
-            obj.co_values = zeros(t_sim, 1);
+            obj.hr_values = zeros(t_sim, 1);
+            obj.map_values = zeros(t_sim, 1);
 
             obj.disturbances = disturbances;
             obj.starts = containers.Map('KeyType', 'double', 'ValueType', 'any');
 
+            % Distinguish the validation of the sequence of disturbances between induction and maintenance
+            obj.in_maintenance = in_maintenance;
+
+            % Validate the sequence of disturbances
             obj.validate_sequence_disturbances();
         end
         
-        function [doh_values, co_values] = get_disturbances(obj, start, cp_prop, cp_remi)
+        function [doh_values, hr_values, map_values] = get_disturbances(obj, start, cp_prop, cp_remi)
         % Get the disturbances, if the time point 
         % Parameters:
         %   time: the time point to get the disturbances
@@ -45,18 +54,21 @@ classdef Disturbance < handle
         %   cp_remi: plasma concentration of remifentanil
         % Returns:
         %   doh_values: the disturbances for depth of hypnosis
-        %   co_values: the disturbances for cardiac output
+        %   hr_values: the disturbances for heart rate
+        %   map_values: the disturbances for mean arterial pressure
         
             if isKey(obj.disturbances, start)
                 type = obj.disturbances(start).disturbanceType;
                 duration = obj.disturbances(start).duration;
                 deltas = obj.disturbances(start).deltas;
-                obj.min_dis_doh = 0.1 * deltas(1);
-                obj.min_dis_co = 0.1 * deltas(2);
+                obj.min_dis_doh = 0.2 * deltas(1);
+                obj.min_dis_hr = 0.2 * deltas(2);
+                obj.min_dis_map = 0.2*deltas(3);
                 w = obj.generate_coeff(cp_prop, cp_remi);
                 delta_doh = obj.min_dis_doh + (deltas(1) - obj.min_dis_doh) * w;
-                delta_co = obj.min_dis_co + (deltas(2) - obj.min_dis_co) * w;
-                deltas = [delta_doh, delta_co];
+                delta_hr = obj.min_dis_hr + (deltas(2) - obj.min_dis_hr) * w;
+                delta_map = obj.min_dis_map + (deltas(3) - obj.min_dis_map) * w;
+                deltas = [delta_doh, delta_hr, delta_map];
                 if type == DisturbanceType.INTUBATION
                     obj.compute_disturbance_intubation(start, duration, deltas);
                 elseif type == DisturbanceType.INCISION
@@ -69,7 +81,8 @@ classdef Disturbance < handle
             end
             
             doh_values = obj.doh_values;
-            co_values = obj.co_values;
+            hr_values = obj.hr_values;
+            map_values = obj.map_values;
         end
 
         function prob = compute_responce_probability_I(c_prop, c_remi, C50_prop, C50_rem, gamma, epsilon)
@@ -167,7 +180,7 @@ classdef Disturbance < handle
         % Parameters:
         %   start: the start time of the event
         %   duration: the duration of the event
-        %   delta_values: the disturbance values for depth of hypnosis and cardiac output
+        %   delta_values: the disturbance values for depth of hypnosis, heart rate, and mean arterial pressure
 
             sigma = 0.2 + (0.2 * rand() - 0.1);
             mode = duration;
@@ -180,13 +193,16 @@ classdef Disturbance < handle
             lognorm = lognpdf(time-start, mu, sigma);
 
             peak_doh = lognorm / max(lognorm) * delta_values(1);
-            peak_co = lognorm / max(lognorm) * delta_values(2);
+            peak_hr = lognorm / max(lognorm) * delta_values(2);
+            peak_map = lognorm / max(lognorm) * delta_values(3);
 
             peak_doh = peak_doh(1:end_index); 
-            peak_co = peak_co(1:end_index);
+            peak_hr = peak_hr(1:end_index);
+            peak_map = peak_map(1:end_index);
            
             obj.doh_values(start:start + end_index -1) = obj.doh_values(start:start + end_index-1) + peak_doh' ;
-            obj.co_values(start:start + end_index-1) = obj.co_values(start:start + end_index-1) + peak_co';
+            obj.hr_values(start:start + end_index-1) = obj.hr_values(start:start + end_index-1) + peak_hr';
+            obj.map_values(start:start + end_index-1) = obj.map_values(start:start + end_index-1) + peak_map';
         end
 
 
@@ -195,7 +211,7 @@ classdef Disturbance < handle
         % Parameters:
         %   start: the start time of the event
         %   duration: the duration of the event
-        %   delta_values: the disturbances values for depth of hypnosis and cardiac output
+        %   delta_values: the disturbances values for depth of hypnosis, heart rate, and mean arterial pressure
             
             peak_time = duration;
             time = linspace(start, start + duration, duration);
@@ -203,8 +219,9 @@ classdef Disturbance < handle
             gaussian = normpdf(time-start, peak_time, sigma);
 
             obj.doh_values(start:start + duration-1) = obj.doh_values(start:start + duration-1) + (gaussian / max(gaussian) * delta_values(1))';
-            obj.co_values(start:start + duration-1) = obj.co_values(start:start + duration-1) + (gaussian / max(gaussian) * delta_values(2))';
-            
+            obj.hr_values(start:start + duration-1) = obj.hr_values(start:start + duration-1) + (gaussian / max(gaussian) * delta_values(2))';
+            obj.map_values(start:start + duration-1) = obj.map_values(start:start + duration-1) + (gaussian / max(gaussian) * delta_values(3))';
+
             decay_start = start + duration -1;
             total_time = 3600 * 60;
             inflection_point = 3600 * 48;
@@ -213,9 +230,11 @@ classdef Disturbance < handle
             s_curve = 0.5 * (1 -tanh((time - (decay_start + inflection_point)) / (inflection_point / steepness)));
             
             obj.doh_values(decay_start:obj.t_sim-1) = obj.doh_values(decay_start:obj.t_sim-1) + (s_curve(1:obj.t_sim - decay_start) * delta_values(1))';
-            obj.co_values(decay_start:obj.t_sim-1) = obj.co_values(decay_start:obj.t_sim-1) + (s_curve(1:obj.t_sim - decay_start) * delta_values(2))';
+            obj.hr_values(decay_start:obj.t_sim-1) = obj.hr_values(decay_start:obj.t_sim-1) + (s_curve(1:obj.t_sim - decay_start) * delta_values(2))';
+            obj.map_values(decay_start:obj.t_sim-1) = obj.map_values(decay_start:obj.t_sim-1) + (s_curve(1:obj.t_sim - decay_start) * delta_values(3))';
             obj.doh_values(decay_start) = delta_values(1);
-            obj.co_values(decay_start) = delta_values(2);
+            obj.hr_values(decay_start) = delta_values(2);
+            obj.map_values(decay_start) = delta_values(3);
 
         end
 
@@ -224,7 +243,7 @@ classdef Disturbance < handle
         % Parameters:
         %   start: the start time of the event
         %   duration: the duration of the event
-        %   delta_values: the range of the noise for the disturbances values for depth of hypnosis and cardiac output
+        %   delta_values: the range of the noise for the disturbances values for depth of hypnosis, heart rate, and mean arterial pressure
         %   w: the weight of the noise
 
             disturbance = zeros(duration, 1);
@@ -234,10 +253,14 @@ classdef Disturbance < handle
 
             if start == 0
                 baseline_doh = obj.doh_values(start);
-                baseline_co = obj.co_values(start);
+                baseline_hr = obj.hr_values(start);
+                baseline_map = obj.map_values(start);
+
             else
                 baseline_doh = obj.doh_values(start - 1);
-                baseline_co = obj.co_values(start - 1);
+                baseline_hr = obj.hr_values(start - 1);
+                baseline_map = obj.map_values(start - 1);
+
             end
 
             random_starts  = rand(1,obj.t_sim)< 0.5;
@@ -262,8 +285,10 @@ classdef Disturbance < handle
 
                     noise_doh = rand() * delta_values(1);
                     noise_doh = obj.min_dis_doh + (noise_doh - obj.min_dis_doh) * w;
-                    noise_co = rand() * delta_values(2);
-                    noise_co = obj.min_dis_co + (noise_co - obj.min_dis_co) * w;
+                    noise_hr = rand() * delta_values(2);
+                    noise_hr = obj.min_dis_hr + (noise_hr - obj.min_dis_hr) * w;
+                    noise_map = rand() * delta_values(3);
+                    noise_map = obj.min_dis_map + (noise_map - obj.min_dis_map) * w;
 
                     peak_time = duration_disturbance / 2;
                     time = linspace(0, duration_disturbance, duration_disturbance);
@@ -273,7 +298,8 @@ classdef Disturbance < handle
 
                     end_global = start + end_index;
                     obj.doh_values(start + i:end_global) = obj.doh_values(start + i:end_global) + (gaussian_normalized * noise_doh)';
-                    obj.co_values(start + i:end_global) = obj.co_values(start + i:end_global) + (gaussian_normalized * noise_co)';
+                    obj.hr_values(start + i:end_global) = obj.hr_values(start + i:end_global) + (gaussian_normalized * noise_hr)';
+                    obj.map_values(start + i:end_global) = obj.map_values(start + i:end_global) + (gaussian_normalized * noise_map)';
 
                 elseif disturbance(i) == 1 && random_modifiers(i) == 1
                     duration_disturbance = max(last_duration - (i - last_index), 1);
@@ -287,22 +313,31 @@ classdef Disturbance < handle
                     if noise_doh < 0
                         if w ~= 0
                             noise_doh = -obj.min_dis_doh + (noise_doh + obj.min_dis_doh) * w;
-                            max_decrease_co = max(obj.co_values(start + i:start + end_idx)) - baseline_co;
-                            noise_co = (-max_decrease_co - 0) * rand() + 0;
-                            noise_co = -obj.min_dis_co + (noise_co + obj.min_dis_co) * w;
+                            max_decrease_hr = max(obj.hr_values(start + i:start + end_idx)) - baseline_hr;
+                            noise_hr = (-max_decrease_hr - 0) * rand() + 0;
+                            noise_hr = -obj.min_dis_hr + (noise_hr + obj.min_dis_hr) * w;
+                            max_decrease_map = max(obj.map_values(start + i:start + end_idx)) - baseline_map;
+                            noise_map = (-max_decrease_map - 0) * rand() + 0;
+                            noise_map = -obj.min_dis_map + (noise_map + obj.min_dis_map) * w;
                         else
                             noise_doh = -obj.min_dis_doh;
-                            noise_co = -obj.min_dis_co;
+                            noise_hr = -obj.min_dis_hr;
+                            noise_map = -obj.min_dis_map;
                         end
                     else
                         if w ~= 0
                             noise_doh = obj.min_dis_doh + (noise_doh - obj.min_dis_doh) * w;
-                            max_additional_co = (baseline_co + delta_values(2)) - max(obj.co_values(start + i:start + end_idx));
-                            noise_co = (max_additional_co - 0) * rand() + 0;
-                            noise_co = obj.min_dis_co + (noise_co - obj.min_dis_co) * w;
+                            max_additional_hr = (baseline_hr + delta_values(2)) - max(obj.hr_values(start + i:start + end_idx));
+                            noise_hr = (max_additional_hr - 0) * rand() + 0;
+                            noise_hr = obj.min_dis_hr + (noise_hr - obj.min_dis_hr) * w;
+                            max_additional_map = (baseline_map + delta_values(3)) - max(obj.map_values(start + i:start + end_idx));
+                            noise_map = (max_additional_map - 0) * rand() + 0;
+                            noise_map = obj.min_dis_map + (noise_map - obj.min_dis_map) * w;
+                            
                         else
                             noise_doh = obj.min_dis_doh;
-                            noise_co = obj.min_dis_co;
+                            noise_hr = obj.min_dis_hr;
+                            noise_map = obj.min_dis_map;
                         end
                     end
 
@@ -310,12 +345,18 @@ classdef Disturbance < handle
                     time = linspace(0, duration_disturbance, duration_disturbance);
                     sigma = 0.2 * duration_disturbance;
                     gaussian = normpdf(time, peak_time, sigma);
-                    gaussian_normalized = gaussian / max(gaussian);
+                    if max(gaussian)==0
+                        gaussian_normalized = gaussian;
+                    else
+                        gaussian_normalized = gaussian / max(gaussian);
+                    end
                     
                     obj.doh_values(start + i:start + end_idx) = obj.doh_values(start + i:start + end_idx) + (gaussian_normalized * noise_doh)';
-                    obj.co_values(start + i:start + end_idx) = obj.co_values(start + i:start + end_idx) + (gaussian_normalized * noise_co)';
+                    obj.hr_values(start + i:start + end_idx) = obj.hr_values(start + i:start + end_idx) + (gaussian_normalized * noise_hr)';
+                    obj.map_values(start + i:start + end_idx) = obj.map_values(start + i:start + end_idx) + (gaussian_normalized * noise_map)';
                     obj.doh_values(start + i:start + end_idx) = max(min(obj.doh_values(start + i:start + end_idx), baseline_doh + delta_values(1)), baseline_doh);
-                    obj.co_values(start + i:start + end_idx) = max(min(obj.co_values(start + i:start + end_idx), baseline_co + delta_values(2)), baseline_co);
+                    obj.hr_values(start + i:start + end_idx) = max(min(obj.hr_values(start + i:start + end_idx), baseline_hr + delta_values(2)), baseline_hr);
+                    obj.map_values(start + i:start + end_idx) = max(min(obj.map_values(start + i:start + end_idx), baseline_map + delta_values(3)), baseline_map);
                 end
             end
         end
@@ -325,7 +366,7 @@ classdef Disturbance < handle
         % Parameters:
         %   start: the start time of the event
         %   duration: the duration of the event
-        %   delta_values: the disturbances values for depth of hypnosis, mean arterial pressure, cardiac output
+        %   delta_values: the disturbances values for depth of hypnosis, heart rate, and mean arterial pressure
         %   cp_prop: plasma concentration of propofol
         %   cp_remi: plasma concentration of remifentanil
 
@@ -383,6 +424,9 @@ classdef Disturbance < handle
                         error('There must be exactly one intubation event.');
                     end
                 end
+            end
+            if incision_count ~= suture_count
+                error('There must be the same number of incision and suture events.')
             end
         end 
     end 
