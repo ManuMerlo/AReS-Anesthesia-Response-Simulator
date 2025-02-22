@@ -21,10 +21,10 @@ setup(
     url='https://github.com/ManuMerlo/AReS-Patient-Simulator',
     packages=find_packages(),
     install_requires=[
-        "pandas==1.3.3",
-        "numpy==1.21.2",
-        "control==0.9.4",
-        "scipy==1.7.3"
+        "pandas",
+        "numpy",
+        "control",
+        "scipy"
     ],
     classifiers=[
         'Programming Language :: Python :: 3',
