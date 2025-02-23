@@ -3,81 +3,86 @@ classdef Patient < handle
         height
         weight
         age
-        gender
+        gender                                  % 1 for female and 0 for male
         bmi
         lbm
         
-        interaction
-        dohMeasure
-        time = 0
+        interaction                             % Types of interaction between propofol and remifentanil
+        dohMeasure                              % Type of monitor is used for measuring the depth of hypnosis
+        time = 0                                % The simulation time initialized at 0
 
-        pk_prop
-        pk_remi
-        pk_nore
-        pk_rocu
+        pk_prop                                 % Propofol PK model
+        pk_remi                                 % Remifentanil PK model
+        pk_nore                                 % Norepinephrine PK model
+        pk_rocu                                 % Rocuronium PK model
 
-        pd_doh
-        pd_hemo
-        pd_nmb
+        pd_doh                                  % PD models used for simulating depth of hypnosis
+        pd_hemo                                 % Hemodynamci PD model
+        pd_nmb                                  % Neuromuscular blockade PD model
 
-        disturbance_model
-        doh_dis = zeros(1, 1)
-        co_dis = zeros(1, 1)
+        disturbance_model                       % Disturbance model
+        doh_dis = zeros(1, 1)                   % The stimuli effect on depth of hypnois initialized at zero
+        hr_dis = zeros(1, 1)                    % The stimuli effect on heart rate initialized at zero
+        map_dis = zeros(1, 1)                   % The stimuli effect on mean arterial pressure initialized at zero
 
-        patient_phase = PatientPhase.Induction
+        patient_phase = PatientPhase.Induction  % Phase of anesthesia that can be induction or maintenance
         maintenance_time = 0
         steady_state = false
         steady_state_values = []
 
-        volume_status = []
-        volume_status_coeff
+        volume_status = []                      % The status of the circulatory volume (either hypovolemia or normovolemia)
+        volume_status_coeff                     % The multiplicative effect of fluid loss on simulated outputs
 
-        x_0_prop = zeros(3,1) 
-        ce_0_prop = 0
-        x_wav_filtered0 = zeros(2,1)
-        x_bis_lti_0 = zeros(4,1)
-        x_bis_delay_0 = 0
-        x_0_delay = 0
+        x_pk_prop_initial = zeros(3,1)          % Initial states (concentrations) of propofol pk model
+        x_pk_remi_initial = zeros(3,1)          % Initial states (concentrations) of remifentanil pk model
+        x_pk_nore_initial = zeros(3,1)          % Initial states (concentrations) of norepinephrine pk model
+        x_pk_rocu_initial = zeros(3,1)          % Initial states (concentrations) of rocuronium pk model
 
-        x_0_remi = zeros(3,1)
-        ce_0_remi = 0
+        x_pd_prop_delay_initial = 0             % Initial state of the delay part of propofol pd model
+        x_pk_nore_delay_initial = 0             % Initial state of the delay part of norepinephrine pk model
+                            
+
+        ce_prop_initial = 0                     % Initial state of propofol effect-site concentration
+        ce_remi_initial = 0                     % Initial state of remifentanil effect-site concentration
+        ce_rocu_initial = 0                     % Initial state of rocuronium effect-site concentration
+
+        x_wav_filter_initial = zeros(2,1)       % Initial state of the filter representing wav monitor       
+        x_bis_filter_lti_initial = zeros(4,1)   % Initial state of LTI part of the filter representing bis monitor
+        x_bis_filter_delay_initial = 0          % Initial state of delay part of the filter representing bis monitor
+
         
-        x_0_nore = zeros(3,1)
-        x0_nore_delayed = 0
-        x_0_rocu = zeros(3,1)
-        ce_0_rocu = 0
-        
-        hemo_init
+        hemo_init                               % Initial values of hemodynamic variables
 
-        cp_prop_arr = []
-        ce_prop_arr = []
-        ce_del_arr = []
-        ce_wav_arr = []
-        ce_bis_arr = []
+        cp_prop_arr = []                        % Simulated propofol plasma concentraion
+        ce_prop_arr = []                        % Simulated propofol effect-site concentraion
+        ce_del_arr = []                         % Simulated variable that represent the effect of delay in pd model on propofol effect-site concentraion
+        ce_wav_arr = []                         % Simulated variable that represent the effect of WAV filter on propofol effect-site concentraion
+        ce_bis_arr = []                         % Simulated variable that represent the effect of BIS filter on propofol effect-site concentraion
 
-        cp_remi_arr = []
-        ce_remi_arr = []
+        cp_remi_arr = []                        % Simulated remifentanil plasma concentraion
+        ce_remi_arr = []                        % Simulated remifentanil effect-site concentraion
 
-        c_nore_arr = []
-        cp_rocu_arr = []
+        c_nore_arr = []                         % Simulated norepinephrine blood concentraion
+        cp_rocu_arr = []                        % Simulated rocuronium plasma concentraion
 
-        u_prop_arr = []
-        u_remi_arr = []
-        u_nore_arr = []
-        u_rocu_arr = []
+        u_prop_arr = []                         % Propofol infusion rate
+        u_remi_arr = []                         % Remifentanil infusion rate
+        u_nore_arr = []                         % Norepinephrine infusion rate
+        u_rocu_arr = []                         % Rocuronium infusion rate
 
-        wav = []
-        bis = []
+        wav = []                                % Simulated WAV Index
+        bis = []                                % Simulated BIS index
 
-        co = []
-        map = []
-        hr = []
-        sv = []
+        map = []                                % Simulated Mean Arterial Pressure
+        co = []                                 % Simulated Cardiac Output
+        hr = []                                 % Simulated Heart Rate
+        sv = []                                 % Simulated Stroke Volume
+        tpr = []                                % Simulated Total Peripheral Resistance
 
-        nmb_m0 = []
-        nmb_m1 = []
-        nmb_m2 = []
-        nmb_m3 = []
+        nmb_m0 = []                             % Simulated probability that m = 0 (NMB is moderate)
+        nmb_m1 = []                             % Simulated probability that m = 1 (NMB is deep)
+        nmb_m2 = []                             % Simulated probability that m = 2 (NMB is profound)
+        nmb_m3 = []                             % Simulated probability that m = 3 (NMB is very profound)
 
     end
 
@@ -108,7 +113,7 @@ classdef Patient < handle
             addOptional(p, 'pk_models',[]);
             addOptional(p, 'pd_models',[]);
             addOptional(p, 'opiates', true);
-            addOptional(p, 'blood_sampling', 'arterial');
+            addOptional(p, 'blood_sampling', BloodSampling.ARTERIAL);
             addOptional(p, 'interaction', Interaction.Surface);
             addOptional(p, 'dohMeasure', DoHMeasure.Both);
             addOptional(p, 'disturbance_model', []);
@@ -127,10 +132,16 @@ classdef Patient < handle
             obj.lbm = data(6);
 
             opiates = p.Results.opiates; % If opiates are used or not during the surgery
-            blood_sampling = p.Results.blood_sampling; % The blood sampling site: arterial or venous
+            if ~isempty(p.Results.blood_sampling)
+                blood_sampling = p.Results.blood_sampling; % The blood sampling site: arterial or venous
+            else
+                blood_sampling = BloodSampling.ARTERIAL;   % If not indicated blood sampling site is arterial
+            end
             
             % Default internal states
-            internal_states = containers.Map({'x_0_prop','ce_0_prop','x_0_remi','ce_0_remi','x_0_nore','x_0_nore_delayed','x_0_rocu','ce_0_rocu'}, {zeros(3,1), 0, zeros(3,1), 0, zeros(3,1), 0, zeros(3,1), 0});
+            internal_states = containers.Map({'x_pk_prop_initial','ce_prop_initial', 'x_pd_prop_delay_initial','x_pk_remi_initial',...
+                'ce_remi_initial','x_pk_nore_initial','x_pk_nore_delay_initial','x_pk_rocu_initial','ce_rocu_initial'},...
+                {zeros(3,1), 0, 0, zeros(3,1), 0, zeros(3,1), 0, zeros(3,1), 0});
             
             % # Initialize the internal states of the patient
             if ~isempty(p.Results.internal_states)
@@ -141,14 +152,15 @@ classdef Patient < handle
                 end
             end
 
-            obj.x_0_prop = internal_states('x_0_prop');
-            obj.ce_0_prop = internal_states('ce_0_prop');
-            obj.x_0_remi = internal_states('x_0_remi');
-            obj.ce_0_remi = internal_states('ce_0_remi');
-            obj.x_0_nore = internal_states('x_0_nore');
-            obj.x0_nore_delayed = internal_states('x_0_nore_delayed');
-            obj.x_0_rocu = internal_states('x_0_rocu');
-            obj.ce_0_rocu = internal_states('ce_0_rocu');
+            obj.x_pk_prop_initial = internal_states('x_pk_prop_initial');
+            obj.ce_prop_initial = internal_states('ce_prop_initial');
+            obj.x_pd_prop_delay_initial = internal_states('x_pd_prop_delay_initial');
+            obj.x_pk_remi_initial = internal_states('x_pk_remi_initial');
+            obj.ce_remi_initial = internal_states('ce_remi_initial');
+            obj.x_pk_nore_initial = internal_states('x_pk_nore_initial');
+            obj.x_pk_nore_delay_initial = internal_states('x_pk_nore_delay_initial');
+            obj.x_pk_rocu_initial = internal_states('x_pk_rocu_initial');
+            obj.ce_rocu_initial = internal_states('ce_rocu_initial');
 
             % Pk-PD models names for propofol, remifentanil, norepinephrine, and rocuronium
             % Note: this values are checked in the Simulators class
@@ -158,8 +170,8 @@ classdef Patient < handle
             var_pk = {obj.age, obj.weight, obj.height, obj.gender, obj.bmi, obj.lbm, opiates, blood_sampling};
             var_pd = {obj.age, obj.weight, blood_sampling};
 
-            if pd_models('prop') == Model.Wav
-                % Parameters to define the Propofol PD model
+            if pd_models('prop') == Model.PATIENT_SPECIFIC
+                % Parameters to define the Propofol patient-specific PD model
                 e0 = data(7);
                 ke0_prop = data(8);
                 delay = data(9);
@@ -169,7 +181,7 @@ classdef Patient < handle
                 var_pd = [var_pd, pd_data];
             end
 
-            % Pharmacokinetic models
+            % Pharmacokinetic model objects
             obj.pk_prop = PharmacokineticModel;
             obj.pk_prop = obj.pk_prop.pk_model(Drug.Propofol, pk_models('prop'), var_pk{:});
 
@@ -182,7 +194,7 @@ classdef Patient < handle
             obj.pk_rocu = PharmacokineticModel;
             obj.pk_rocu = obj.pk_rocu.pk_model(Drug.Rocuronium, pk_models('rocu'), var_pk{:});
 
-            % Pharmacodynamic models
+            % Pharmacodynamic model objects
             obj.pd_doh = PharmacodynamicDoH;
             obj.pd_doh = obj.pd_doh.pd_model_prop(pd_models('prop'), var_pd{:});
             obj.pd_doh = obj.pd_doh.pd_model_remi(pd_models('remi'), var_pd{:});
@@ -190,13 +202,18 @@ classdef Patient < handle
                 obj.pd_doh.e0 = p.Results.output_init('doh');
             end
 
-            % Initialize the hemodynamic model
+            % Initialize the hemodynamic model object
             obj.pd_hemo = PharmacodynamicHemodynamics(obj.age);
 
             % Initialize the hemodyanmic variables.
             obj.hemo_init(4) = 0;
             obj.hemo_init(5) = 0;
             
+            % If the user defines the initial values of hemodynamic
+            % variables, the base values in the hemodynamic model introduced
+            % by Su et al.(2023) is calculated from the user defined 
+            % hemoynamic variables; otherwise, base values are the ones
+            % introduced in the study by Su et al. (2023).
             if ~isempty(p.Results.output_init)
                 output_init = p.Results.output_init;
                 
@@ -295,6 +312,7 @@ classdef Patient < handle
             co_ = obj.get_last_value_or_default(obj.co, base_co);
             hr_ = obj.get_last_value_or_default(obj.hr, base_hr);
             sv_ = obj.get_last_value_or_default(obj.sv, base_sv);
+            tpr_ = obj.get_last_value_or_default(obj.tpr, obj.pd_hemo.base_tpr);
             nmb_m0_ = obj.get_last_value_or_default(obj.nmb_m0, 1);
             nmb_m1_ = obj.get_last_value_or_default(obj.nmb_m1, 0);
             nmb_m2_ = obj.get_last_value_or_default(obj.nmb_m2, 0);
@@ -309,8 +327,8 @@ classdef Patient < handle
             ce_wav = obj.get_last_value_or_default(obj.ce_wav_arr, 0);
             ce_bis = obj.get_last_value_or_default(obj.ce_bis_arr, 0);
 
-            keys = {'wav', 'bis', 'map', 'co', 'hr', 'sv','nmb_m0', 'nmb_m1', 'nmb_m2', 'nmb_m3','cp_prop', 'cp_remi', 'c_nore', 'cp_rocu', 'ce_prop', 'ce_remi', 'ce_del', 'ce_wav', 'ce_bis'};
-            values = {wav_, bis_, map_, co_, hr_, sv_, nmb_m0_, nmb_m1_, nmb_m2_, nmb_m3_, cp_prop, cp_remi, c_nore, cp_rocu, ce_prop, ce_remi, ce_del, ce_wav, ce_bis};
+            keys = {'wav', 'bis', 'map', 'co', 'hr', 'sv', 'tpr','nmb_m0', 'nmb_m1', 'nmb_m2', 'nmb_m3','cp_prop', 'cp_remi', 'c_nore', 'cp_rocu', 'ce_prop', 'ce_remi', 'ce_del', 'ce_wav', 'ce_bis'};
+            values = {wav_, bis_, map_, co_, hr_, sv_, tpr_, nmb_m0_, nmb_m1_, nmb_m2_, nmb_m3_, cp_prop, cp_remi, c_nore, cp_rocu, ce_prop, ce_remi, ce_del, ce_wav, ce_bis};
             patient_state = containers.Map(keys, values);
         end
 
@@ -318,7 +336,7 @@ classdef Patient < handle
         % Get the patient state history
         % Returns:
         %   patient_state_history: A map containing the patient state history from the  beginning of the simulation [containers.Map]
-            keys = {'wav', 'bis', 'map', 'co', 'hr', 'sv','nmb_m0', 'nmb_m1', 'nmb_m2', 'nmb_m3', 'cp_prop', 'cp_remi', 'c_nore', 'cp_rocu', 'ce_prop', 'ce_remi', 'ce_del', 'ce_wav', 'ce_bis'};
+            keys = {'wav', 'bis', 'map', 'co', 'hr', 'sv', 'nmb_m0', 'nmb_m1', 'nmb_m2', 'nmb_m3', 'cp_prop', 'cp_remi', 'c_nore', 'cp_rocu', 'ce_prop', 'ce_remi', 'ce_del', 'ce_wav', 'ce_bis'};
             values = { obj.wav, obj.bis, obj.map, obj.co, obj.hr, obj.sv, obj.nmb_m0, obj.nmb_m1, obj.nmb_m2, obj.nmb_m3, obj.cp_prop_arr, obj.cp_remi_arr, obj.c_nore_arr, obj.cp_rocu_arr, obj.ce_prop_arr, obj.ce_remi_arr, obj.ce_del_arr, obj.ce_wav_arr, obj.ce_bis_arr};
             patient_state_history = containers.Map(keys, values);
         end
@@ -337,7 +355,7 @@ classdef Patient < handle
         % Get the patient disturbances
         % Returns:  
         %   disturbances: A map containing the patient disturbances [containers.Map]
-            disturbances = containers.Map({'doh_dis', 'co_dis'}, {obj.doh_dis, obj.co_dis});
+            disturbances = containers.Map({'doh_dis', 'hr_dis', 'map_dis'}, {obj.doh_dis, obj.hr_dis, obj.map_dis});
         end
 
         function [phase, steady_state] = get_patient_phase(obj)
@@ -352,8 +370,12 @@ classdef Patient < handle
         % Get the current patient internal states
         % Returns:
         %   internal_state: A map containing the patient internal states [containers.Map]
-            keys = {'x_0_prop', 'ce_0_prop', 'x_0_remi', 'ce_0_remi', 'x_0_nore', 'x_0_nore_delayed', 'x_0_rocu', 'ce_0_rocu'};
-            values = {obj.x_0_prop, obj.ce_0_prop, obj.x_0_remi, obj.ce_0_remi, obj.x_0_nore, obj.x0_nore_delayed, obj.x_0_rocu, obj.ce_0_rocu};
+            keys = {'x_pk_prop_initial', 'ce_prop_initial', 'x_pd_prop_delay_initial', 'x_pk_remi_initial',...
+                'ce_remi_initial', 'x_pk_nore_initial', 'x_pk_nore_delay_initial',...
+                'x_pk_rocu_initial', 'ce_rocu_initial'};
+            values = {obj.x_pk_prop_initial, obj.ce_prop_initial, obj.x_pd_prop_delay_initial, obj.x_pk_remi_initial,...
+                obj.ce_remi_initial, obj.x_pk_nore_initial, obj.x_pk_nore_delay_initial,...
+                obj.x_pk_rocu_initial, obj.ce_rocu_initial};
             interal_state = containers.Map(keys, values);
         end
 
@@ -401,6 +423,7 @@ classdef Patient < handle
             obj.map = obj.map(end);
             obj.hr = obj.hr(end);
             obj.sv = obj.sv(end);
+            obj.tpr = obj.tpr(end);
 
             obj.nmb_m0 = obj.nmb_m0(end);
             obj.nmb_m1 = obj.nmb_m1(end);
@@ -412,17 +435,17 @@ classdef Patient < handle
         function [cp_prop_sim, cp_remi_sim, c_nore_sim, cp_rocu_sim] = compute_plasma_concentration(obj, u_prop, u_remi, u_nore, u_rocu, t)
         % Compute the plasma concentration of the drugs for a given time step given the infusion rates
         % Parameters:
-        %   u_prop: Propofol infusion rate [double]
-        %   u_remi: Remifentanil infusion rate [double]
-        %   u_nore: Norepinephrine infusion rate [double]
-        %   u_rocu: Rocuronium infusion rate [double]
-        %   t: Time step [array]
+        %   u_prop: Propofol infusion rate [double] [mg * sec^-1]
+        %   u_remi: Remifentanil infusion rate [double] [µg * sec^-1]
+        %   u_nore: Norepinephrine infusion rate [double] [µg * sec^-1]
+        %   u_rocu: Rocuronium infusion rate [double] [mg * sec^-1]
+        %   t: Time step [array] [second]
 
-            [cp_prop_sim, ~, x_prop] = lsim(obj.pk_prop.pk,u_prop,t,obj.x_0_prop);   
-            [cp_remi_sim, ~, x_remi] = lsim(obj.pk_remi.pk,u_remi,t,obj.x_0_remi);
+            [cp_prop_sim, ~, x_prop] = lsim(obj.pk_prop.pk,u_prop,t,obj.x_pk_prop_initial);   
+            [cp_remi_sim, ~, x_remi] = lsim(obj.pk_remi.pk,u_remi,t,obj.x_pk_remi_initial);
             
-            [c_nore_sim, ~, x_nore] = lsim(obj.pk_nore.pk, u_nore, t, obj.x_0_nore);
-            [cp_rocu_sim, ~, x_rocu] = lsim(obj.pk_rocu.pk, u_rocu, t, obj.x_0_rocu);
+            [c_nore_sim, ~, x_nore] = lsim(obj.pk_nore.pk, u_nore, t, obj.x_pk_nore_initial);
+            [cp_rocu_sim, ~, x_rocu] = lsim(obj.pk_rocu.pk, u_rocu, t, obj.x_pk_rocu_initial);
 
             cp_prop_sim(cp_prop_sim<0) = 0;
             cp_remi_sim(cp_remi_sim<0) = 0;
@@ -430,10 +453,10 @@ classdef Patient < handle
             cp_rocu_sim(cp_rocu_sim<0) = 0;
 
             % Update initial states
-            obj.x_0_prop = x_prop(end,:);
-            obj.x_0_remi = x_remi(end,:);
-            obj.x_0_nore = x_nore(end,:);
-            obj.x_0_rocu = x_rocu(end,:);
+            obj.x_pk_prop_initial = x_prop(end,:);
+            obj.x_pk_remi_initial = x_remi(end,:);
+            obj.x_pk_nore_initial = x_nore(end,:);
+            obj.x_pk_rocu_initial = x_rocu(end,:);
 
             obj.cp_prop_arr = [obj.cp_prop_arr; cp_prop_sim(1:end)];
             obj.cp_remi_arr = [obj.cp_remi_arr; cp_remi_sim(1:end)];
@@ -449,12 +472,14 @@ classdef Patient < handle
         %   ce_remi_sim: Remifentanil effect site concentration [double]
         %   t: Time step [array]
 
-            [ce_wav_filtered,~, x_wav_filtered] = lsim(obj.pd_doh.neurow_sensor_dynamics(),ce_delayed,t,obj.x_wav_filtered0); 
+            % Apply the filter defined for wav monitor
+            [ce_wav_filtered,~, x_wav_filtered] = lsim(obj.pd_doh.neurow_sensor_dynamics(),ce_delayed,t,obj.x_wav_filter_initial); 
 
             ce_wav_filtered(ce_wav_filtered<0) = 0;
-            obj.x_wav_filtered0 = x_wav_filtered(end, :);
+            obj.x_wav_filter_initial = x_wav_filtered(end, :);
             obj.ce_wav_arr = [obj.ce_wav_arr; ce_wav_filtered(1:end)];
-        
+
+            % If there is no interaction between propofol and remifentanil, the hill function is applied; otherwise the surface interaction model is used.
             if obj.interaction == Interaction.Surface
                 wav_interv = obj.pd_doh.responseSurfaceModel(ce_wav_filtered, ce_remi_sim);
             elseif obj.interaction == Interaction.No_interaction
@@ -472,17 +497,19 @@ classdef Patient < handle
         %   ce_remi_sim: Remifentanil effect site concentration [array]
         %   t: Time step [array]
 
+            % Apply the filter defined for bis monitor
             [bis_delay, bis_lti] = obj.pd_doh.bis_sensor_dynamics();
 
-            [ce_bis_filtered, ~, x_bis_lti] = lsim(bis_lti,ce_delayed,t,obj.x_bis_lti_0);
-            [ce_bis_filtered,~, x_bis_delay] = lsim(bis_delay, ce_bis_filtered,t,obj.x_bis_delay_0);     
+            [ce_bis_filtered, ~, x_bis_lti] = lsim(bis_lti,ce_delayed,t,obj.x_bis_filter_lti_initial);
+            [ce_bis_filtered,~, x_bis_delay] = lsim(bis_delay, ce_bis_filtered,t,obj.x_bis_filter_delay_initial);     
 
             ce_bis_filtered(ce_bis_filtered<0) = 0;
             obj.ce_bis_arr = [obj.ce_bis_arr; ce_bis_filtered(1:end)];
 
-            obj.x_bis_lti_0 = x_bis_lti(end, :);
-            obj.x_bis_delay_0 = x_bis_delay(end, :);
-            
+            obj.x_bis_filter_lti_initial = x_bis_lti(end, :);
+            obj.x_bis_filter_delay_initial = x_bis_delay(end, :);
+
+            % If there is no interaction between propofol and remifentanil, the hill function is applied; otherwise the surface interaction model is used.
             if obj.interaction == Interaction.Surface
                 bis_interv = obj.pd_doh.responseSurfaceModel(ce_bis_filtered, ce_remi_sim);
             elseif obj.interaction == Interaction.No_interaction
@@ -492,7 +519,7 @@ classdef Patient < handle
             end
         end
 
-        function [co_interv, map_interv, hr_interv, sv_interv] = compute_hemodynamic_variables(obj, cp_prop, cp_remi, c_nore, t_sim)
+        function [co_interv, map_interv, hr_interv, sv_interv, tpr_interv] = compute_hemodynamic_variables(obj, cp_prop, cp_remi, c_nore, t_sim)
         % Compute the hemodynamic variables for a given time step
         % Parameters:
         %   cp_prop: Propofol plasma concentration [array]
@@ -501,10 +528,10 @@ classdef Patient < handle
         %   t_sim: Time step [array]
 
             % Norepinephrine's effect on hemodynamic variables
-            [c_nore_delayed, ~, x_nore_delayed] = lsim(obj.pd_hemo.delay_ss(), c_nore, t_sim, obj.x0_nore_delayed);
+            [c_nore_delayed, ~, x_nore_delayed] = lsim(obj.pd_hemo.delay_ss(), c_nore, t_sim, obj.x_pk_nore_delay_initial);
             
             c_nore_delayed(c_nore_delayed<0) = 0;
-            obj.x0_nore_delayed = x_nore_delayed(end,:);
+            obj.x_pk_nore_delay_initial = x_nore_delayed(end,:);
 
             map_nore = obj.pd_hemo.hillfun(c_nore_delayed, 'map');
             co_nore = obj.pd_hemo.hillfun(c_nore_delayed, 'co');
@@ -543,22 +570,24 @@ classdef Patient < handle
 
             hr_interv = hr_star_interv + tde_hr_interv;
             sv_interv = (sv_star_interv+tde_sv_interv).*(1 - obj.pd_hemo.hr_sv*log(hr_interv/(obj.pd_hemo.base_hr*(1+obj.pd_hemo.ltde_hr))));
-            co_interv = hr_interv.*sv_interv/1000;
-
-            % Adding the effect of disturbances
+            
+            % Adding the effect of stimuli
             if ~isempty(obj.disturbance_model)
-                interval = min(t_sim, length(obj.co_dis) - obj.time);
-                co_interv = co_interv + obj.co_dis(obj.time + 1 : obj.time + 1 + interval);
+                interval = min(t_sim, length(obj.hr_dis) - obj.time);
+                tpr_interv = (tpr_interv*hr_interv + obj.map_dis(obj.time + 1 : obj.time + 1 + interval)/sv_interv)/...
+                    (hr_interv + obj.hr_dis(obj.time + 1 : obj.time + 1 + interval));
+                hr_interv = hr_interv + obj.hr_dis(obj.time + 1 : obj.time + 1 + interval);
             end
             
+            co_interv = hr_interv.*sv_interv/1000;
             map_interv = tpr_interv.*co_interv*1000;
-            hr_interv = co_interv./ sv_interv * 1000;
-            sv_interv = co_interv*1000./hr_interv;
             
             % Linear interaction with norepinephrine
             co_interv = co_interv + co_nore;
             map_interv = map_interv + map_nore;
 
+
+            % The effect of fluid loss 
             if ~isempty(obj.volume_status) && isKey(obj.volume_status, obj.time)
                 status = obj.volume_status(obj.time);
                 if status == VolumeStatus.Hypovolemia
@@ -580,10 +609,10 @@ classdef Patient < handle
         %   cp_rocu: Rocuronium plasma concentration [array]
         %   t: Time step [array]
         
-            [ce_rocu, ~, x_ce_rocu] = lsim(obj.pd_nmb.pd_ce, cp_rocu, t, obj.ce_0_rocu);  
+            [ce_rocu, ~, x_ce_rocu] = lsim(obj.pd_nmb.pd_ce, cp_rocu, t, obj.ce_rocu_initial);  
 
             ce_rocu(ce_rocu<0) = 0;
-            obj.ce_0_rocu = x_ce_rocu(end);
+            obj.ce_rocu_initial = x_ce_rocu(end);
             
             % Compute the probability for each category of NMB
             nmb_interv = obj.pd_nmb.hillfun(ce_rocu);
@@ -621,13 +650,13 @@ classdef Patient < handle
             % the Propofol and Remifentnail plasma concentrations
 
             if ~isempty(obj.disturbance_model)
-                [obj.doh_dis, obj.co_dis] = obj.disturbance_model.get_disturbances(obj.time, cp_prop_sim(end), cp_remi_sim(end));
+                [obj.doh_dis, obj.hr_dis, obj.map_dis] = obj.disturbance_model.get_disturbances(obj.time, cp_prop_sim(end), cp_remi_sim(end));
             end
 
             % Compute effect-site concentrations of Propofol and  Remifentanil
 
-            [ce_prop_sim, ~, x_ce_sim] = lsim(obj.pd_doh.pd_prop_ce, cp_prop_sim, t_sim, obj.ce_0_prop);              
-            [ce_remi_sim, ~, x_ce_remi] = lsim(obj.pd_doh.pd_remi_ce, cp_remi_sim, t_sim, obj.ce_0_remi);  
+            [ce_prop_sim, ~, x_ce_sim] = lsim(obj.pd_doh.pd_prop_ce, cp_prop_sim, t_sim, obj.ce_prop_initial);              
+            [ce_remi_sim, ~, x_ce_remi] = lsim(obj.pd_doh.pd_remi_ce, cp_remi_sim, t_sim, obj.ce_remi_initial);  
 
             ce_prop_sim(ce_prop_sim<0) = 0;
             ce_remi_sim(ce_remi_sim<0) = 0;
@@ -637,19 +666,19 @@ classdef Patient < handle
                 ce_delayed = ce_prop_sim;
                 x_delay = x_ce_sim;
             else
-                [ce_delayed,~,x_delay] = lsim(obj.pd_doh.delay_ss(), ce_prop_sim,t_sim, obj.x_0_delay);  
+                [ce_delayed,~,x_delay] = lsim(obj.pd_doh.delay_ss(), ce_prop_sim,t_sim, obj.x_pd_prop_delay_initial);  
             end
             ce_delayed(ce_delayed<0) = 0;
 
-            obj.ce_0_prop = x_ce_sim(end);
-            obj.ce_0_remi = x_ce_remi(end);
-            obj.x_0_delay = x_delay(end,:);
+            obj.ce_prop_initial = x_ce_sim(end);
+            obj.ce_remi_initial = x_ce_remi(end);
+            obj.x_pd_prop_delay_initial = x_delay(end,:);
 
             obj.ce_prop_arr = [obj.ce_prop_arr; ce_prop_sim(1:end)];
             obj.ce_remi_arr = [obj.ce_remi_arr; ce_remi_sim(1:end)];
             obj.ce_del_arr = [obj.ce_del_arr; ce_delayed(1:end)];
 
-
+            % Based on the monitor used for measuring depth of hypnois, wav or bis index is updated.       
             if obj.dohMeasure == DoHMeasure.Wav || obj.dohMeasure == DoHMeasure.Both
                 [wav_interv] = obj.compute_WAV(ce_delayed, ce_remi_sim, t_sim);
                 if ~isempty(obj.disturbance_model)
@@ -680,6 +709,7 @@ classdef Patient < handle
             end
             obj.bis = [obj.bis; bis_interv(1:end)];
             
+            % Check if the patient is in the maintenance phase: if the patient's wav of bis has been under 60  for 3 minutes
             if obj.patient_phase == PatientPhase.Induction
                 for elem = elems'
                     if elem < 60
@@ -694,7 +724,8 @@ classdef Patient < handle
                     end
                 end
             end
-                
+            % Check if the patient is in steady state: if the output is stable for 3 minutes around the target value (WAV or BIS = 50)
+            % Start checking after 1000 seconds (visually estimated time for the patient to reach the target value) to improve the performance
             if obj.patient_phase == PatientPhase.Maintenance && obj.time > 1000 && ~obj.steady_state
                 lower_bound = 50 - 50 * 0.05;
                 upper_bound = 50 + 50 * 0.05;
@@ -702,6 +733,7 @@ classdef Patient < handle
                     if isempty(obj.steady_state_values)
                         obj.steady_state_values = elem;
                     else
+                        % Check if the element is within the target range and close to the previous value
                         if abs(elem - obj.steady_state_values(end)) < 0.2 && elem > lower_bound && elem < upper_bound
                             obj.steady_state_values = [obj.steady_state_values, elem]; 
                         else
@@ -720,7 +752,7 @@ classdef Patient < handle
 
 
             % Compute the hemodynamic variables
-            [co_interv, map_interv, hr_interv, sv_interv] = obj.compute_hemodynamic_variables(cp_prop_sim, cp_remi_sim, c_nore_sim, t_sim);
+            [co_interv, map_interv, hr_interv, sv_interv, tpr_interv] = obj.compute_hemodynamic_variables(cp_prop_sim, cp_remi_sim, c_nore_sim, t_sim);
 
             % Compute the probabilities of the NMB categories
             nmb_interv = obj.compute_nmb(cp_rocu_sim, t_sim);
@@ -730,6 +762,7 @@ classdef Patient < handle
             obj.map = [obj.map; map_interv(1:end)];
             obj.hr = [obj.hr; hr_interv(1:end)];
             obj.sv = [obj.sv; sv_interv(1:end)];
+            obj.tpr = [obj.tpr; tpr_interv(1:end)];
             
             obj.nmb_m0 = [obj.nmb_m0; nmb_interv(1:end,1)];
             obj.nmb_m1 = [obj.nmb_m1; nmb_interv(1:end,2)];

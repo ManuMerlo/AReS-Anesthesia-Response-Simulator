@@ -92,9 +92,9 @@ class PharmacodynamicDoH:
             raise ValueError("Age is missing for the PK model for propofol.")
 
         if self.model_prop == Model.PATIENT_SPECIFIC:
-            if 'pd_wav_parameter' not in kwargs:
-                raise ValueError("PD WAV parameters are missing for the PK model for propofol.")
-            data = kwargs.get('pd_wav_parameter', None)
+            if 'pd_patient_specific_parameter' not in kwargs:
+                raise ValueError("PD patient-specific parameters are missing for the PK model for propofol.")
+            data = kwargs.get('pd_patient_specific_parameter', None)
             self._e0 = data['e0']
             self._ke0_prop = data['ke0']
             self._delay = data['delay']

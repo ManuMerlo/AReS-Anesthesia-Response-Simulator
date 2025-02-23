@@ -39,22 +39,22 @@ class Patient:
         # Initialize the internal states of the patient
         if internal_states is None:
             internal_states = {}
-        self._x_prop = internal_states.get('x_prop', [0, 0, 0])
-        self._x_ce_prop = internal_states.get('x_ce_prop', 0)
+        self._x_prop = internal_states.get('x_prop', [0, 0, 0])             # Initial states (concentrations) of propofol pk model
+        self._x_ce_prop = internal_states.get('x_ce_prop', 0)               # Initial state of propofol effect-site concentration
+        self._x_delay = internal_states.get('x_delay',0)                    # Initial state of the delay part of propofol pd model
 
-        self._x_wav_filtered = [0, 0]  # Initial states for the WAV filter model
-        self._x_bis_lti = [0, 0, 0, 0]  # Initial states for the BIS LTI model
-        self._x_bis_delay = 0  # Initial state for the BIS delay model
-        self._x_delay = 0  # Initial state for the delayed effect site concentration of propofol
+        self._x_wav_filtered =  [0, 0]                                      # Initial state of the filter representing wav monitor
+        self._x_bis_lti = [0, 0, 0, 0]                                      # Initial state of the LTI part of the filter representing bis monitor
+        self._x_bis_delay = 0                                                # Initial state of the delay part of the filter representing bis monitor
 
-        self._x_remi = internal_states.get('x_remi', [0, 0, 0])
-        self._x_ce_remi = internal_states.get('x_ce_remi', 0)
+        self._x_remi = internal_states.get('x_remi', [0, 0, 0])             # Initial states (concentrations) of remifentanil pk model
+        self._x_ce_remi = internal_states.get('x_ce_remi', 0)               # Initial state of remifentanil effect-site concentration
 
-        self._x_nore = internal_states.get('x_nore', [0, 0, 0])
-        self._x_nore_delayed = internal_states.get('x_nore_delayed', [0])
+        self._x_nore = internal_states.get('x_nore', [0, 0, 0])             # Initial states (concentrations) of norepinephrine pk model
+        self._x_nore_delayed = internal_states.get('x_nore_delayed', [0])   # Initial state of the delay part of norepinephrine pk model
 
-        self._x_rocu = internal_states.get('x_rocu', [0, 0, 0])
-        self._x_ce_rocu = internal_states.get('x_ce_rocu', 0)
+        self._x_rocu = internal_states.get('x_rocu', [0, 0, 0])             # Initial states (concentrations) of rocuronium pk model
+        self._x_ce_rocu = internal_states.get('x_ce_rocu', 0)               # Initial state of rocuronium effect-site concentration
 
         # Pk-models names for propofol, remifentanil, norepinephrine, and rocuronium
         if pk_models is None:
@@ -70,39 +70,44 @@ class Patient:
         pd_model_prop = pd_models.get('prop', Model.ELEVELD)
         pd_model_remi = pd_models.get('remi', Model.ELEVELD)
 
-        # Parameters to initialize the pharmacokinetic model
+        # Parameters to initialize the Pk and Pd model
         kwargs = {'age': self._age, 'weight': self._weight, 'height': self._height, 'gender': self._gender,
                   'bmi': self._bmi, 'lbm': self._lbm, 'opiates': opiates, 'blood_sampling': blood_sampling}
 
         if pd_model_prop == Model.PATIENT_SPECIFIC:
-            # Parameters to define the Propofol PD model identified using the WAV
+            # Parameters to define the Propofol patient-specific PD model
             if len(data) < 11:
                 raise ValueError(
                     'The data list should contain 11 elements to initialize the patient with a patient-specific PD model.')
-            pd_wav_parameter = {
+            pd_patient_specific_parameter = {
                 'e0': data[6],
                 'ke0': data[7],
                 'delay': data[8],
                 'ec50': 0.01 * data[6] * data[9],
                 'gamma': data[10]
             }
-            kwargs['pd_wav_parameter'] = pd_wav_parameter
+            kwargs['pd_patient_specific_parameter'] = pd_patient_specific_parameter
 
-        # Pharmacokinetic models
+        # Pharmacokinetic model objects
         self._pk_prop = Pharmacokinetic.create(Drug.PROPOFOL, pk_model_prop, **kwargs)
         self._pk_remi = Pharmacokinetic.create(Drug.REMIFENTANIL, pk_model_remi, **kwargs)
         self._pk_nore = Pharmacokinetic.create(Drug.NOREPINEPHRINE, pk_model_nore, **kwargs)
         self._pk_rocu = Pharmacokinetic.create(Drug.ROCURONIUM, pk_model_rocu, **kwargs)
 
-        # Pharmacodynamic models
+        # Pharmacodynamic model objects
         self._pd_doh = PharmacodynamicDoH(model_prop=pd_model_prop, model_remi=pd_model_remi, **kwargs)
         if output_init is not None and 'doh' in output_init.keys():
             self._pd_doh.set_e0(output_init.get('doh'))
 
-        # Initialize the hemodynamic model
+        # Initialize the hemodynamic model object
         self._pd_hemo = PharmacodynamicHemo(self._age)
 
         # Initialize the hemodynamic variables
+
+        # If the user defines the initial values of hemodynamic variables, the base values in the hemodynamic model introduced
+        # by Su et al.(2023) is calculated from the user defined hemoynamic variables; otherwise, base values are the ones
+        # introduced in the study by Su et al. (2023).
+
         if output_init is not None:
             hr = output_init.get('hr') if 'hr' in output_init.keys() else self._pd_hemo.base_hr
             base_hr = hr - self._pd_hemo.base_hr * self._pd_hemo.ltde_hr
@@ -125,7 +130,8 @@ class Patient:
 
             self._hemodynamic_variables = [base_tpr, base_sv, base_hr, 0, 0]
         else:
-            if seed is not None:  # Add interpatient variability to the hemodynamic variables if seed is not None
+            if seed is not None:
+                # Add interpatient variability to the hemodynamic variables if seed is not None
                 self._pd_hemo.interpatient_variability(seed)
             self._hemodynamic_variables = [self._pd_hemo.base_tpr, self._pd_hemo.base_sv, self._pd_hemo.base_hr, 0, 0]
 
@@ -154,39 +160,39 @@ class Patient:
         self._steady_state_values = deque(maxlen=180)
 
         # Create the arrays to record the plasma and effect-site concentration, infusion rates, and the predicted stats
-        self._cp_prop = np.array([], dtype=np.float64)  # plasma concentration of propofol
-        self._ce_prop = np.array([], dtype=np.float64)  # effect site concentration of propofol
-        self._ce_del = np.array([], dtype=np.float64)  # delayed effect site concentration of propofol
-        self._ce_wav = np.array([], dtype=np.float64)  # effect site concentration of propofol for WAV
-        self._ce_bis = np.array([], dtype=np.float64)  # effect site concentration of propofol for BIS
+        self._cp_prop = np.array([], dtype=np.float64)  # Simulated propofol plasma concentraion
+        self._ce_prop = np.array([], dtype=np.float64)  # Simulated propofol effect-site concentraion
+        self._ce_del = np.array([], dtype=np.float64)   # Simulated variable that represent the effect of delay  in pd model on propofol effect-site concentraion
+        self._ce_wav = np.array([], dtype=np.float64)   # Simulated variable that represent the effect of WAV filter on propofol effect-site concentraion
+        self._ce_bis = np.array([], dtype=np.float64)   # Simulated variable that represent the effect of BIS filter on propofol effect-site concentraion
 
-        self._cp_remi = np.array([], dtype=np.float64)  # plasma concentration of remifentanil
-        self._ce_remi = np.array([], dtype=np.float64)  # effect site concentration of remifentanil
+        self._cp_remi = np.array([], dtype=np.float64)  # Simulated remifentanil plasma concentraion
+        self._ce_remi = np.array([], dtype=np.float64)  # Simulated remifentanil effect-site concentraion
 
-        self._c_nore = np.array([], dtype=np.float64)  # blood concentration of norepinephrine
-        self._cp_rocu = np.array([], dtype=np.float64)  # plasma concentration of rocuronium
+        self._c_nore = np.array([], dtype=np.float64)   # Simulated norepinephrine blood concentraion
+        self._cp_rocu = np.array([], dtype=np.float64)  # Simulated rocuronium plasma concentraion
 
-        self._u_prop = []
-        self._u_remi = []
-        self._u_nore = []
-        self._u_rocu = []
+        self._u_prop = []                                     # Propofol infusion rate
+        self._u_remi = []                                     # Remifentanil infusion rate
+        self._u_nore = []                                     # Norepinephrine infusion rate
+        self._u_rocu = []                                     # Rocuronium infusion rate
 
         # Doh
-        self._WAV = np.array([], dtype=np.float64)
-        self._BIS = np.array([], dtype=np.float64)
+        self._WAV = np.array([], dtype=np.float64)      # Simulated WAV Index
+        self._BIS = np.array([], dtype=np.float64)      # Simulated BIS Index
 
         # Hemodynamic variables
-        self._MAP = np.array([], dtype=np.float64)
-        self._CO = np.array([], dtype=np.float64)
-        self._HR = np.array([], dtype=np.float64)
-        self._SV = np.array([], dtype=np.float64)
-        self._TPR = np.array([], dtype=np.float64)
+        self._MAP = np.array([], dtype=np.float64)      # Simulated Mean Arterial Pressure
+        self._CO = np.array([], dtype=np.float64)       # Simulated Cardiac Output
+        self._HR = np.array([], dtype=np.float64)       # Simulated Heart Rate
+        self._SV = np.array([], dtype=np.float64)       # Simulated Stroke Volume
+        self._TPR = np.array([], dtype=np.float64)      # Simulated Total Peripheral Resistance
 
         # Neuromuscular blockade
-        self._NMB_m0 = np.array([], dtype=np.float64)
-        self._NMB_m1 = np.array([], dtype=np.float64)
-        self._NMB_m2 = np.array([], dtype=np.float64)
-        self._NMB_m3 = np.array([], dtype=np.float64)
+        self._NMB_m0 = np.array([], dtype=np.float64)   # Simulated probability that m = 0 (NMB is moderate)
+        self._NMB_m1 = np.array([], dtype=np.float64)   # Simulated probability that m = 1 (NMB is deep)
+        self._NMB_m2 = np.array([], dtype=np.float64)   # Simulated probability that m = 2 (NMB is profound)
+        self._NMB_m3 = np.array([], dtype=np.float64)   # Simulated probability that m = 3 (NMB is very profound)
 
     def get_patient_demographics(self):
         """
@@ -279,18 +285,30 @@ class Patient:
         return self._patient_phase, self._steady_state
 
     def get_patient_internal_states(self):
-        return {'x_prop': self._x_prop, 'x_ce_prop': self._x_ce_prop, 'x_remi': self._x_remi,
-                'x_ce_remi': self._x_ce_remi,
-                'x_nore': self._x_nore, 'x_nore_delayed': self._x_nore_delayed, 'x_rocu': self._x_rocu,
-                'x_ce_rocu': self._x_ce_rocu}
+        """
+        :returns: The current patient internal states
+        :rtype: dict
+        """
+        return {'x_prop': self._x_prop, 'x_ce_prop': self._x_ce_prop, 'x_delay':self._x_delay,
+                'x_remi': self._x_remi,'x_ce_remi': self._x_ce_remi, 'x_nore': self._x_nore,
+                'x_nore_delayed': self._x_nore_delayed, 'x_rocu': self._x_rocu, 'x_ce_rocu': self._x_ce_rocu}
 
     def set_time(self, time: int):
+        """
+        Set the current time of the simulation
+        """
         self._time = time
 
     def set_disturbance_model(self, disturbance_model: Disturbance):
+        """
+        Set the disturbance model
+        """
         self._disturbance_model = disturbance_model
 
     def set_volume_status(self, volume_status: dict):
+        """
+        Set the volume status
+        """
         self._volume_status = volume_status
 
     def clear_data(self):
@@ -340,7 +358,7 @@ class Patient:
         :type u_nore: np.ndarray
         :param u_rocu: The rocuronium input [mg * sec^-1]
         :type u_rocu: np.ndarray
-        :param t: The time vector.
+        :param t: The time vector. [second]
         :type t: np.ndarray
 
         :returns: The plasma concentration of propofol, remifentanil, norepinephrine, and rocuronium.
@@ -383,17 +401,16 @@ class Patient:
         :returns: The WAV values.
         :rtype: np.ndarray
         """
-
+        # Apply the filter defined for wav monitor
         _, ce_wav_filtered, x_wav_filtered = signal.lsim(PharmacodynamicDoH.neurow_sensor_dynamics(), ce_delayed_prop,
                                                          t, self._x_wav_filtered)
 
         ce_wav_filtered[ce_wav_filtered < 0] = 0
         self._x_wav_filtered = x_wav_filtered[-1, :]
         self._ce_wav = np.append(self._ce_wav, ce_wav_filtered[:])
-
+        # If there is no interaction between propofol and remifentanil, the hill function is applied; otherwise the surface interaction model is used.
         if self._interaction == Interaction.NO_INTERACTION:
-            wav = self._pd_doh.hillfun(
-                ce_wav_filtered)  # This is not an error, the ce_wav_filtered is a ndarray of shape (t,1)
+            wav = self._pd_doh.hillfun(ce_wav_filtered)
         elif self._interaction == Interaction.SURFACE:
             wav = self._pd_doh.responseSurfaceModel(ce_wav_filtered, ce_remi_sim)
         else:
@@ -415,6 +432,7 @@ class Patient:
         :returns: The BIS values.
           :rtype: np.ndarray
         """
+        # Apply the filter defined for bis monitor
 
         bis_delay, bis_lti = PharmacodynamicDoH.bis_sensor_dynamics()
 
@@ -427,6 +445,7 @@ class Patient:
         self._x_bis_lti = x_bis_lti[-1, :]
         self._x_bis_delay = x_bis_delay[-1]  # this is correct, x_bis is a 1D array
 
+        # If there is no interaction between propofol and remifentanil, the hill function is applied; otherwise the surface interaction model is used.
         if self._interaction == Interaction.NO_INTERACTION:
             bis = self._pd_doh.hillfun(
                 ce_bis_filtered)  # This is not an error, the ce_bis_filtered is a ndarray of shape (t,1)
@@ -499,15 +518,6 @@ class Patient:
                 1 - self._pd_hemo.hr_sv * np.log(hr_interval / (self._pd_hemo.base_hr * (1 + self._pd_hemo.ltde_hr))))
 
         # Adding the effect of disturbances
-
-        # map_new = hr_new * sv * tpr_new -> assuming sv constant
-        # hr_new = hr + hr_dis
-        # map_new = map + map_dis
-        # map + map_dis = tpr_new * (hr + hr_dis) * sv
-        # tpr * sv * hr + map_dis = tpr_new * (hr + hr_dis) * sv
-        # trp * hr + map_dis/sv = tpr_new * (hr + hr_dis)
-        # tpr_new = (tpr * hr + map_dis/sv) / (hr + hr_dis)
-
         if self._disturbance_model is not None:
             interval = min(len(t), len(self._hr_dis) - self._time)
             tpr_interval = (tpr_interval * hr_interval + self._map_dis[
@@ -609,6 +619,7 @@ class Patient:
         self._ce_remi = np.append(self._ce_remi, ce_remi_sim[:])
         self._ce_del = np.append(self._ce_del, ce_delayed_prop[:])
 
+        # Based on the monitor used for measuring depth of hypnois, wav or bis index is updated.
         if self._doh_measure == DoHMeasure.WAV or self._doh_measure == DoHMeasure.BOTH:
             wav_interval = np.array(self._compute_WAV(ce_delayed_prop, ce_remi_sim, t), dtype=np.float64)
             if self._disturbance_model is not None:
