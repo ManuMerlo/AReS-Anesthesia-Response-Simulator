@@ -53,7 +53,7 @@ classdef PharmacokineticModel
                         height = varargin{3};
                         lbm = varargin{6};
 
-                        % Propofol parameters (Schnider model)
+                        % Propofol parameters (Schnider et al. 1998)
                         obj.v1comp3 = 4.27;
                         obj.v2comp3 = 18.9 - 0.391 * (age - 53);
                         obj.v3comp3 = 238;  % [l]
@@ -67,7 +67,7 @@ classdef PharmacokineticModel
                         opiates = varargin{7};
                         blood_sampling = varargin{8};
 
-                        % Propofol parameters (Eleveld model)
+                        % Propofol parameters (Eleveld et al. 2018)
 
                         theta_1 = 6.28;                     % V1_ref [litre]
                         theta_2 = 25.5;                     % V2_ref [litre]
@@ -149,7 +149,7 @@ classdef PharmacokineticModel
                     if obj.model == Model.Minto
                         lbm = varargin{6};
 
-                        % Remifentanil parameters (Minto model)
+                        % Remifentanil parameters (Minto et al. 1997)
 
                         obj.v1comp3 = 5.1 - 0.0201 * (age - 40) + 0.072 * (lbm - 55);
                         obj.v2comp3 = 9.82 - 0.0811 * (age - 40) + 0.108 * (lbm - 55);
@@ -163,7 +163,7 @@ classdef PharmacokineticModel
                         gender = varargin{4};
                         bmi = varargin{5};
 
-                        % Remifentanil parameters (Eleveld model)
+                        % Remifentanil parameters (Eleveld et al. 2017)
 
                         v1_ref = 5.81;   % [L]
                         v2_ref = 8.82;   % [L]
@@ -208,7 +208,7 @@ classdef PharmacokineticModel
 
                 case Drug.Norepinephrine
 
-                    % Norepinephrine parameters (Joachim model)
+                    % Norepinephrine parameters (Joachim et al. 2024)
 
                     if obj.model == Model.Joachim
                         lbm = varargin{6};
@@ -224,7 +224,7 @@ classdef PharmacokineticModel
                 case Drug.Rocuronium
                     if obj.model == Model.Dahe
 
-                        % Rocuronium parameters (Da Haes Model)
+                        % Rocuronium parameters (Da Haes et al. 2002)
 
                         weight = varargin{2};
                         obj.v1comp3 = 42*weight/1000;     % [L]

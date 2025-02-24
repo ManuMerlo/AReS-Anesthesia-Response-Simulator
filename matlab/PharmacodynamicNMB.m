@@ -1,18 +1,30 @@
 classdef PharmacodynamicNMB
+     %{
+    NMB: Nueromuscular Blockade
+    m = 0 (NMB is moderate)
+    m = 1 (NMB is deep)
+    m = 2 (NMB is profound)
+    m = 3 (NMB is very profound)
+
+    Please refer to the following paper for this PD model:
+
+    Comparison of two pharmacokinetic–pharmacodynamic models of rocuronium bromide
+    during profound neuromuscular block: analysis of estimated and measured 
+    post-tetanic count effect, M. Couto et al., BJ Anaesthesia (2022)
+    %}
     properties (Access = public)
         drug
-        pd_ce
+        pd_ce       % Linear part of PD model to calculate the rocuronium effect-site concentration
     end
     
     properties (Access = private)
         % Drug-specific parameters 
-        gam;
-        ke0;        %  [min ^ (-1)]
+        gam;        % Steepness of the effect-concentration curve 
+        ke0;        % Flow rates from effect-site compartment to the central one for rocuronium [1/min]
         
-        % Coute model
-        ec50_m1;    % [µg ml ^ (-1)]
-        ec50_m2;    % [µg ml ^ (-1)]
-        ec50_m3;    % [µg ml ^ (-1)]
+        ec50_m1;    % Rocuronium effect-site concentration associated with 50% of probability for the m=1 category [µg/mL]
+        ec50_m2;    % Rocuronium effect-site concentration associated with 50% of probability for the m=2 category [µg/mL]
+        ec50_m3;    % Rocuronium effect-site concentration associated with 50% of probability for the m=3 category [µg/mL]
     end
 
     methods
@@ -25,7 +37,6 @@ classdef PharmacodynamicNMB
             obj.drug = drug;
             switch obj.drug
                 case Drug.Rocuronium
-                    % Rocuronium parameters (Coute Model)
                     obj.ke0 = 0.134;
                     obj.ec50_m1 = 1.10;
                     obj.ec50_m2 = 1.5;
@@ -50,10 +61,10 @@ classdef PharmacodynamicNMB
             p2 = x.^obj.gam./(obj.ec50_m2.^obj.gam + x.^obj.gam);
             p3 = x.^obj.gam./(obj.ec50_m3.^obj.gam + x.^obj.gam);
             
-            p_m0 = 1 - p1;   % Probability between [0 1] if m=0
-            p_m1 = p1 - p2;  % Probability between [0 1] if m=1
-            p_m2 = p2 - p3;  % Probability between [0 1] if m=2
-            p_m3 = p3;       % Probability between [0 1] if m=3
+            p_m0 = 1 - p1;   % Probability for the m=0 category
+            p_m1 = p1 - p2;  % Probability for the m=1 category
+            p_m2 = p2 - p3;  % Probability for the m=2 category
+            p_m3 = p3;       % Probability for the m=3 category
             e = [p_m0, p_m1, p_m2, p_m3];
         end
 

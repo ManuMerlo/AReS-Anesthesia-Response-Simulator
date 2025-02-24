@@ -26,7 +26,7 @@ class Pharmacokinetic:
         self._k31 = None        # Drug flow rate from compartment 2 to 3 [1/min]
         self._ka = None         # Drug flow rate from depot compartment to central one [1/min]
 
-    # Factory method to create the pharmacokinetic model
+    # Factory method to create the pharmacokinetic model for each drug
     @classmethod
     def create(cls, drug: Drug, model: Model, **kwargs):
         """
@@ -78,6 +78,7 @@ class Pharmacokinetic:
             raise ValueError("Age or weight is missing for Propofol PK model")
 
         if model == Model.SCHNIDER:
+            # Propofol parameters (Schnider et al. 1998)
             height = kwargs.get('height', -1)
             lbm = kwargs.get('lbm', -1)
 
@@ -92,6 +93,7 @@ class Pharmacokinetic:
             self._cl3comp3 = 0.836  # [l / min]
 
         elif model == Model.ELEVELD:
+            # Propofol parameters (Eleveld et al. 2018)
             gender = kwargs.get('gender', -1)
             bmi = kwargs.get('bmi', -1)
             opiates = kwargs.get('opiates', None)
@@ -190,6 +192,7 @@ class Pharmacokinetic:
             raise ValueError("Age is missing for Remifentanil PK model")
 
         if model is None or model == Model.MINTO:
+            # Remifentanil parameters (Minto et al. 1997)
             lbm = kwargs.get('lbm', -1)
             if lbm == -1:
                 raise ValueError("Lean body mass is missing for Minto PK model for Remifentanil")
@@ -202,6 +205,7 @@ class Pharmacokinetic:
             self._cl3comp3 = 0.076 - 0.00113 * (age - 40)
 
         elif model == Model.ELEVELD:
+            # Remifentanil parameters (Eleveld et al. 2017)
             weight = kwargs.get('weight', -1)
             gender = kwargs.get('gender', -1)
             bmi = kwargs.get('bmi', -1)
@@ -257,6 +261,7 @@ class Pharmacokinetic:
         :type kwargs: dict
         """
         if model is None or model == Model.JOACHIM:
+            # Norepinephrine parameters (Joachim et al. 2024)
             lbm = kwargs.get('lbm', -1)
             if lbm == -1:
                 raise ValueError("Lean body mass is missing for Joachim PK model for Norepinephrine")
@@ -278,6 +283,7 @@ class Pharmacokinetic:
         :type kwargs: dict
         """
         if model is None or model == Model.DAHE:
+            # Rocuronium parameters (Da Haes et al. 2002)
             weight = kwargs.get('weight', -1)
             if weight == -1:
                 raise ValueError("Weight is missing for Dahe PK model for Rocuronium")

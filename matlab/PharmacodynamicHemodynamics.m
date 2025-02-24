@@ -7,7 +7,7 @@ classdef PharmacodynamicHemodynamics
     CO: cardiac output
     TDE: time-dependent effect
 
-    Please refer to the following two papers for this PD models:
+    Please refer to the following two papers for this PD model:
     1) Pharmacodynamic mechanism-based interaction model for the haemodynamic effects of remifentanil and propofol
        in healthy volunteers. Su et al., Br J Anaesthesia, 2023.
     2) Design of a pharmacokinetic/pharmacodynamic model for administration of low dose peripheral norepinephrine during
@@ -103,6 +103,7 @@ classdef PharmacodynamicHemodynamics
                     error('Norepinephrine is not considered to affect: %s', output);
             end
             x(x<0) = 0;
+            % Hill function
             e = x.^gamma./(ec50.^gamma + x.^gamma);
             e = emax*e;
         end

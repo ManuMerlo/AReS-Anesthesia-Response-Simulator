@@ -12,18 +12,18 @@ class PharmacodynamicDoH:
     def __init__(self, model_prop: Model = Model.ELEVELD, model_remi: Model = Model.ELEVELD, **kwargs):
         self.model_prop = model_prop
         self.model_remi = model_remi
-        self._e0 = 100  # Default value
-        self._delay = 0  # Default value
+        self._e0 = 100                    # The base value of the depth of hypnosis
+        self._delay = 0                   # Response delay introduced in the PD model of the propofol  [seconds]
 
-        self.pd_prop_ce = None
-        self._gam_high_ce = None
-        self._gam = None
-        self._ke0_prop = None
-        self._ec50_prop = None
+        self.pd_prop_ce = None            # The linear part of propofol PD model used to calculate the effect-site concentration
+        self._gam_high_ce = None          # Steepness of the effect-concentration curve for high values of effect-site concentration
+        self._gam = None                  # Steepness of the effect-concentration curve for low values of effect-site concentration
+        self._ke0_prop = None             # Flow rates from effect-site compartment to the central one for porpofol [1/min]
+        self._ec50_prop = None            # Propofol effect-site concentration at 50 % effect [µg/mL]
 
-        self.pd_remi_ce = None
-        self._ec50_remi = None
-        self._ke0_remi = None
+        self.pd_remi_ce = None            # The linear part of remifentanil PD model used to calculate the effect-site concentration
+        self._ec50_remi = None            # Remifentanil effect-site concentration at 50 % effect [ng/mL]
+        self._ke0_remi = None             # Flow rates from effect-site compartment to the central one for remifentanil [1/min]
 
         self.create_propofol_model(**kwargs)
         self.create_remifentanil_model(**kwargs)
@@ -92,6 +92,7 @@ class PharmacodynamicDoH:
             raise ValueError("Age is missing for the PK model for propofol.")
 
         if self.model_prop == Model.PATIENT_SPECIFIC:
+            # Propofol patient-specific PD models (Hosseinirad et al. 2023)
             if 'pd_patient_specific_parameter' not in kwargs:
                 raise ValueError("PD patient-specific parameters are missing for the PK model for propofol.")
             data = kwargs.get('pd_patient_specific_parameter', None)
@@ -103,7 +104,7 @@ class PharmacodynamicDoH:
             self._gam_high_ce = self._gam
 
         elif self.model_prop == Model.SCHNIDER:
-            self._ke0_prop = 0.456  # [min ^ (-1)]
+            self._ke0_prop = 0.456               # [min ^ (-1)]
             self._ec50_prop = 2.9 - 0.022 * age  # [µg ml ^ (-1)]
             self._delay = 0
             self._gam = 1.43
@@ -116,15 +117,13 @@ class PharmacodynamicDoH:
             if weight < 0 or blood_sampling is None:
                 raise ValueError("Weight or blood sampling site is missing for the PK model for propofol.")
 
-            thetaPD_1 = 3.08  # ec50 [µg ml^-1]
-            thetaPD_2 = 0.146  # ke0 for arterial samples [min^-1]
-            thetaPD_3 = 93  # Baseline BIS value
-            thetaPD_4 = 1.47  # PD sigmoid slope (Ce > Ce50)
-            # thetaPD_5 = 8.03                    # Residual error [BIS]
-            # thetaPD_6 = 0.0517                  # Increase in delay with age
-            thetaPD_7 = -0.00635  # Decrease in Ce50 with age
-            thetaPD_8 = 1.24  # ke0 for venous samples [min^-1]
-            thetaPD_9 = 1.89  # PD sigmoid slope (Ce < Ce50)
+            thetaPD_1 = 3.08                # ec50 [µg mL^-1]
+            thetaPD_2 = 0.146               # ke0 for arterial samples [min^-1]
+            thetaPD_3 = 93                  # Baseline BIS value
+            thetaPD_4 = 1.47                # PD sigmoid slope (Ce > Ce50)
+            thetaPD_7 = -0.00635            # Decrease in Ce50 with age
+            thetaPD_8 = 1.24                # ke0 for venous samples [min^-1]
+            thetaPD_9 = 1.89                # PD sigmoid slope (Ce < Ce50)
 
             # The effect of the blood sampling site on the volume and clearance rates
             if blood_sampling == BloodSampling.ARTERIAL:
@@ -135,7 +134,7 @@ class PharmacodynamicDoH:
                 raise ValueError(f"The {blood_sampling} is not valid.")
 
             f_aging_theta7 = np.exp(thetaPD_7 * (age - 35))
-            self._ec50_prop = thetaPD_1 * f_aging_theta7  # [µg ml ^ (-1)]
+            self._ec50_prop = thetaPD_1 * f_aging_theta7           # [µg ml ^ (-1)]
             self._ke0_prop = theta_ke0 * (weight / 70) ** (-0.25)  # [min ^ (-1)]
             self._e0 = thetaPD_3
             self._delay = 0
@@ -157,10 +156,12 @@ class PharmacodynamicDoH:
             raise ValueError("Age is missing for the PK model for remifentanil.")
 
         if self.model_remi is None or self.model_remi == Model.MINTO:
+            # Remifentanil parameters (Minto et al. 1997)
             self._ke0_remi = 0.595 - 0.007 * (age - 40)
             self._ec50_remi = 13.1 - 0.148 * (age - 40)
 
         elif self.model_remi == Model.ELEVELD:
+            # Remifentanil parameters (Eleveld et al. 2017)
             theta1 = -0.0289
             self._ec50_remi = 12.7  # [ng/ml]
             self._ke0_remi = 1.09 * np.exp(theta1 * (age - 35))  # [1/min]
@@ -187,14 +188,18 @@ class PharmacodynamicDoH:
 
     def responseSurfaceModel(self, x_prop, x_remi):
         """
-        Response surface model for the interaction between propofol and remifentanil.
+        Response surface model for the interaction between propofol and remifentanil introduced by Bouillon et al. (2004).
         :param x_prop: propofol concentration.
         :param x_remi: remifentanil concentration.
         :return: effect of the drug.
         :rtype: np.ndarray
         """
-        # Bouillon Minto RSM
-        # beta = 2.13  this value is used in the original model but it is too high
+        # Beta value is not the one reported by Bouillon et al.(2004), and
+        # this value is empirically found by trying different combinations
+        # of pk-pd model for propofol and remifentanil such that the
+        # difference between the computed doH with interaction and
+        # without the interaction is not more than 20% of the value of
+        # DoH if we disregard the interactions
         beta = 1.0
         x_prop = np.array(x_prop)
         x_remi = np.array(x_remi)
@@ -227,7 +232,7 @@ class PharmacodynamicHemo:
     CO: cardiac output
     TDE: time-dependent effect
 
-    Please refer to the following two papers for this PD models:
+    Please refer to the following two papers for this PD model:
     1) Pharmacodynamic mechanism-based interaction model for the haemodynamic effects of remifentanil and propofol
        in healthy volunteers. Su et al., Br J Anaesthesia, 2023.
     2) Design of a pharmacokinetic/pharmacodynamic model for administration of low dose peripheral norepinephrine during
@@ -238,29 +243,29 @@ class PharmacodynamicHemo:
     def __init__(self, age):
         super().__init__()
         # Private properties
-        self._emax_tpr_prop = -0.778  # maximum effect of propofol on TPR
-        self._ec50_tpr_prop = 3.21  # c_e that produce half of the maximal propofol effect of TPR [µg ml^-1]
+        self._emax_tpr_prop = -0.778                                       # maximum effect of propofol on TPR
+        self._ec50_tpr_prop = 3.21                                         # c_e that produce half of the maximal propofol effect of TPR [µg ml^-1]
         self._emax_sv_age = 0.0333
         self._emax_sv_prop = -0.154 * exp(self._emax_sv_age * (age - 35))  # maximum effect of propofol on SV
-        self._ec50_sv_prop = 0.44  # c_e that produce half of the maximal propofol effect of SV [µg ml^-1]
-        self._emax_tpr_remi = -1  # maximum effect of remifentanil on TPR
-        self._ec50_tpr_remi = 4.59  # c_e that produce half of the maximal remifentanil effect of TPR [ng ml^-1]
-        self._sl_sv_remi = 0.0581  # slope of remifentanil effect on SV [ng ml^-1]
-        self._sl_hr_remi = 0.0327  # slope of remifentanil effect on HR [ng ml^-1]
+        self._ec50_sv_prop = 0.44                                          # c_e that produce half of the maximal propofol effect of SV [µg ml^-1]
+        self._emax_tpr_remi = -1                                           # maximum effect of remifentanil on TPR
+        self._ec50_tpr_remi = 4.59                                         # c_e that produce half of the maximal remifentanil effect of TPR [ng ml^-1]
+        self._sl_sv_remi = 0.0581                                          # slope of remifentanil effect on SV [ng ml^-1]
+        self._sl_hr_remi = 0.0327                                          # slope of remifentanil effect on HR [ng ml^-1]
 
         # maximum magnitude changes of slope of remifentanil on tpr SV and HR caused by propofol
         self._int_tpr = 1
-        self._int_hr = -0.119  # [ng ml^-1]
-        self._int_sv = -0.212  # [ng ml^-1]
-        self._ec50_int_hr = 0.196  # Interaction potency of propofol on the effect of remifentanil on HR [microg ml^-1]
+        self._int_hr = -0.119           # [ng ml^-1]
+        self._int_sv = -0.212           # [ng ml^-1]
+        self._ec50_int_hr = 0.196       # Interaction potency of propofol on the effect of remifentanil on HR [microg ml^-1]
 
         # Hill coefficient for TPR sigmoid
         self._gamma_tpr_prop = 1.83
         self._gamma_tpr_remi = 1
 
         self._fb = 0.661  # magnitude of the feedback
-        self._kout = 0.072 / 60  # first-order dissipation rate constant for SV, HR, and TPR [second^-1]
-        self._k_tde = 0.067 / 60  # first-order dissipation rate constant for TDE [second^-1]
+        self._kout = 0.072 / 60         # first-order dissipation rate constant for SV, HR, and TPR [second^-1]
+        self._k_tde = 0.067 / 60        # first-order dissipation rate constant for TDE [second^-1]
 
         # Inter - patient variability
         self._omega_base_sv = sqrt(0.0328)
@@ -272,19 +277,19 @@ class PharmacodynamicHemo:
         self._omega_sl_sv_remi = sqrt(0.00868)
 
         # Hill function parameters for norepinephrine effect on hemodynamics variables
-        self._ec50_nore_map = 15.27  # [nmol l^-1]
-        self._ec50_nore_co = 36  # [nmol l^-1]
+        self._ec50_nore_map = 15.27         # [nmol l^-1]
+        self._ec50_nore_co = 36             # [nmol l^-1]
         self._gamma_nore_map = 1.46
         self._gamma_nore_co = 2.3
-        self._t_lag = 25  # [second]
+        self._t_lag = 25                    # [second]
 
         # Public properties
-        self.hr_sv = 0.312  # magnitude of the inverse effect of HR on SV
-        self.ltde_hr = 0.121  # percentage of increased baseline HR caused by the time-dependent effect
-        self.ltde_sv = 0.0899  # percentage of increased baseline HR caused by the time-dependent effect
-        self.base_sv = 82.2  # base value of SV [ml]
-        self.base_hr = 56.1  # base value of HR [beats min^-1]
-        self.base_tpr = 0.0163  # base value of TPR [mmHg ml^-1 min]
+        self.hr_sv = 0.312                  # magnitude of the inverse effect of HR on SV
+        self.ltde_hr = 0.121                # percentage of increased baseline HR caused by the time-dependent effect
+        self.ltde_sv = 0.0899               # percentage of increased baseline HR caused by the time-dependent effect
+        self.base_sv = 82.2                 # base value of SV [ml]
+        self.base_hr = 56.1                 # base value of HR [beats min^-1]
+        self.base_tpr = 0.0163              # base value of TPR [mmHg ml^-1 min]
 
     def interpatient_variability(self, seed):
         """
@@ -318,16 +323,17 @@ class PharmacodynamicHemo:
         # Norepinephrine effect on MAP and CO.
         if output == 'map':
             gamma = self._gamma_nore_map
-            ec50 = self._ec50_nore_map
-            emax = self.base_hr * (1 + self.ltde_hr) * self.base_sv * (1 + self.ltde_sv) * self.base_tpr
+            ec50 = self._ec50_nore_map                                                                      # [mmHg]
+            emax = self.base_hr * (1 + self.ltde_hr) * self.base_sv * (1 + self.ltde_sv) * self.base_tpr    # [mmHg]
         elif output == 'co':
             gamma = self._gamma_nore_co
-            ec50 = self._ec50_nore_co
-            emax = self.base_hr * (1 + self.ltde_hr) * self.base_sv * (1 + self.ltde_sv) / 1000
+            ec50 = self._ec50_nore_co                                                                       # [L/min]
+            emax = self.base_hr * (1 + self.ltde_hr) * self.base_sv * (1 + self.ltde_sv) / 1000             # [L/min]
         else:
             raise ValueError(f"Norepinephrine is not considered to affect: {output}")
 
         x = np.array([i if i > 0 else 0 for i in x])
+        # Hill function
         e = x ** gamma / (ec50 ** gamma + x ** gamma)
         e = emax * e
         return e
@@ -414,19 +420,32 @@ class PharmacodynamicHemo:
 
 
 class PharmacodynamicNMB:
+    """
+    NMB: Nueromuscular Blockade
+    m = 0 (NMB is moderate)
+    m = 1 (NMB is deep)
+    m = 2 (NMB is profound)
+    m = 3 (NMB is very profound)
+
+    Please refer to the following paper for this PD model:
+
+    Comparison of two pharmacokinetic–pharmacodynamic models of rocuronium bromide
+    during profound neuromuscular block: analysis of estimated and measured
+    post-tetanic count effect, M. Couto et al., BJ Anaesthesia (2022)
+    """
     def __init__(self, drug: Drug = Drug.ROCURONIUM):
         self._drug = drug
 
         if self._drug == Drug.ROCURONIUM:
-            self._ke0 = 0.134  # [min ^ (-1)]
-            self._ec50_m1 = 1.10  # [µg ml ^ (-1)]
-            self._ec50_m2 = 1.5  # [µg ml ^ (-1)]
-            self._ec50_m3 = 2.2  # [µg ml ^ (-1)]
-            self._gam = 4.5
+            self._ke0 = 0.134                  # Flow rates from effect-site compartment to the central one for rocuronium [1/min]
+            self._ec50_m1 = 1.10               # Rocuronium effect-site concentration associated with 50% of probability for the m=1 category [µg/mL]
+            self._ec50_m2 = 1.5                # Rocuronium effect-site concentration associated with 50% of probability for the m=2 category [µg/mL]
+            self._ec50_m3 = 2.2                # Rocuronium effect-site concentration associated with 50% of probability for the m=3 category [µg/mL]
+            self._gam = 4.5                    # Steepness of the effect-concentration curve
         else:
             raise ValueError(f"Drug not supported: {self._drug}")
 
-        self.pd_ce = self.get_state_space()
+        self.pd_ce = self.get_state_space()    # Linear part of PD model to calculate the rocuronium effect-site concentration
 
     def hillfun(self, x: np.ndarray) -> np.ndarray:
         """
@@ -444,10 +463,10 @@ class PharmacodynamicNMB:
         p2 = x ** self._gam / (self._ec50_m2 ** self._gam + x ** self._gam)
         p3 = x ** self._gam / (self._ec50_m3 ** self._gam + x ** self._gam)
 
-        p_m0 = 1 - p1  # Probability between [0 1] if m=0
-        p_m1 = p1 - p2  # Probability between [0 1] if m=1
-        p_m2 = p2 - p3  # Probability between [0 1] if m=2
-        p_m3 = p3  # Probability between [0 1] if m=3
+        p_m0 = 1 - p1    # Probability for the m=0 category
+        p_m1 = p1 - p2   # Probability for the m=1 category
+        p_m2 = p2 - p3   # Probability for the m=2 category
+        p_m3 = p3        # Probability for the m=3 category
         return np.array([p_m0, p_m1, p_m2, p_m3])
 
     def get_state_space(self):

@@ -2,33 +2,27 @@ classdef PharmacodynamicDoH
     properties (Access = public)
         propofol_model 
         remifentanil_model
-        delay = 0;          % default
-        e0 = 100;           % default
+        delay = 0;          % Response delay introduced in the PD model of the propofol [seconds]
+        e0 = 100;           % The base value of the depth of hypnosis
 
-        pd_prop_ce
-        pd_remi_ce
+        pd_prop_ce          % The linear part of propofol PD model used to calculate the effect-site concentration
+        pd_remi_ce          % The linear part of remifentanil PD model used to calculate the effect-site concentration
     end
 
     properties (Access = private)
         % Drug-specific parameters 
-        ec50_prop
-        ec50_remi
-        gam_high_ce;        % default = gam
-        gam
-        ke0_prop
-        ke0_remi
+        ec50_prop           % Propofol effect-site concentration at 50 % effect [µg/mL]
+        ec50_remi           % Remifentanil effect-site concentration at 50 % effect [ng/mL]
+        gam_high_ce         % Steepness of the effect-concentration curve for high values of effect-site concentration
+        gam                 % Steepness of the effect-concentration curve for low values of effect-site concentration
+        ke0_prop            % Flow rates from effect-site compartment to the central one for porpofol [1/min]
+        ke0_remi            % Flow rates from effect-site compartment to the central one for remifentanil [1/min]            
     end
 
     methods (Static)
         function gns_sim = neurow_sensor_dynamics()
         % Create the neuromuscular sensor dynamics.
         % Returns the continuous-time transfer function of the sensor dynamics.
-            %% Sensor dynamics
-            % Af =[ -1.76499380516919   0.77880078307141]; %30 sec IIR filter
-            % Bf =[  0.00719098459233   0.00661599330988];
-            % Gns = tf(Bf, [1 Af], 1, 'variable', 'z^-1');
-
-            % gns_sim = d2c(ss(Gns));
             A = [0.875000000000001	-0.882496902584599;
             1.13314845306682	-1.12499999999999];
             B = [0.0678724069605523;
@@ -72,47 +66,48 @@ classdef PharmacodynamicDoH
 
             obj.propofol_model = propofol_model;
             switch obj.propofol_model
-                case Model.Wav
+                case Model.PATIENT_SPECIFIC
+                    % Propofol patient-specific PD models (Hosseinirad et al. 2023)
                     data = varargin{4};
                     obj.e0 = data(1);
-                    obj.ke0_prop = data(2);
+                    obj.ke0_prop = data(2);                 % [1/min]
                     obj.delay = data(3);
-                    obj.ec50_prop = data(4);
+                    obj.ec50_prop = data(4);                % [µg/mL]
                     obj.gam = data(5);
                     obj.gam_high_ce = obj.gam;
      
                 case Model.Schnider
+                    % Propofol PD models (Schnider et al. 1998)
                     age = varargin{1};
-                    obj.ke0_prop = 0.456; %[min^(-1)]
-                    obj.ec50_prop = 2.9 - 0.022*age;
+                    obj.ke0_prop = 0.456;                  % [1/min]
+                    obj.ec50_prop = 2.9 - 0.022*age;       % [µg/mL]
                     obj.delay = 0;
                     obj.gam = 1.43;
                     obj.gam_high_ce = obj.gam;
                     
                 case Model.Eleveld
+                    % Propofol PD models (Eleveld et al. 2017)
                     age = varargin{1};
                     wgt = varargin{2};
                     blood_sampling = varargin{3};
 
-                    thetaPD_1 = 3.08;                     % Ce50 [microgram/ml]
+                    thetaPD_1 = 3.08;                     % Ce50 [µg/mL]
                     thetaPD_2 = 0.146;                    % ke0 for arterial samples [1/min]
                     thetaPD_3 = 93;                       % Baseline BIS value
                     thetaPD_4 = 1.47;                     % PD sigmoid slope (Ce > Ce50)
-                    % thetaPD_5 = 8.03;                   % Residual error [BIS]
-                    % thetaPD_6 = 0.0517;                 % Increase in delay with age
                     thetaPD_7 = -0.00635;                 % Decrease in Ce50 with age
                     thetaPD_8 = 1.24;                     % ke0 for veous samples [1/min]
                     thetaPD_9 = 1.89;                     % PD sigmoid slope (Ce < Ce50)
 
                     % The effect of the blood sampling site on the volume and clearance rates
-                    if strcmp(blood_sampling, 'arterial')
+                    if blood_sampling == BloodSampling.ARTERIAL
                         theta_ke0 = thetaPD_2;
-                    elseif strcmp(blood_sampling, 'venous')
+                    elseif blood_sampling == BloodSampling.VENOUS
                         theta_ke0 = thetaPD_8;
                     end
 
                     f_agingTheta7 = exp(thetaPD_7*(age - 35));
-                    obj.ec50_prop = thetaPD_1*f_agingTheta7;                          % [microgram/ml]
+                    obj.ec50_prop = thetaPD_1*f_agingTheta7;                          % [µg/mL]
                     obj.ke0_prop = theta_ke0*(wgt/70)^(-0.25);                        % [1/min]
                     obj.e0 = thetaPD_3;
                     obj.delay = 0;
@@ -134,11 +129,13 @@ classdef PharmacodynamicDoH
 
             age = varargin{1};
             if remifentanil_model == Model.Minto
+                % Remifentanil parameters (Minto et al. 1997)
                 obj.ke0_remi = 0.595 - 0.007*(age - 40);
                 obj.ec50_remi = 13.1 - 0.148*(age - 40);
             elseif remifentanil_model == Model.Eleveld
+                % Remifentanil parameters (Eleveld et al. 2017)
                 theta1 = -0.0289;
-                obj.ec50_remi = 12.7;                        % [ng/ml]
+                obj.ec50_remi = 12.7;                               % [ng/mL]
                 obj.ke0_remi = 1.09 * exp(theta1 * (age - 35));     % [1/min]
             end
 
@@ -166,12 +163,19 @@ classdef PharmacodynamicDoH
         end
 
         function e = responseSurfaceModel(obj, x_prop, x_remi)
-        % Response surface model for the pharmacodynamic model.
+        % Response surface model for the interaction between propofol and
+        % remifentanil introduced by Bouillon et al. (2004)
         % Parameters:
         %   x_prop: propofol concentration [array]
         %   x_remi: remifentanil concentration [array]
         % Returns the effect of the drug.
-
+            
+            % Beta value is not the one reported by Bouillon et al.(2004), and 
+            % this value is empirically found by trying different combinations
+            % of pk-pd model for propofol and remifentanil such that the 
+            % difference between the computed doH with interaction and 
+            % without the interaction is not more than 20% of the value of 
+            % DoH if we disregard the interactions
             beta = 1;
             inter_prop = x_prop./obj.ec50_prop; 
             inter_remi = x_remi./obj.ec50_remi;
