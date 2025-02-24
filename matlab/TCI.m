@@ -1,24 +1,37 @@
 classdef TCI < handle
+    %{
+        TCI: Target Controlled Infusion
+
+        Based on the targeted compartments, the TCI mode can be either
+        effect-site [Shafer et al. 1992] or plasma targeted [Bailey et al. 1991]. 
+
+        The limits of plasma concentration and infusion rate are determined
+        for safety considerations [Van Poucke et al. 2004]
+    %}
     properties
-        drug;
-        mode = TciMode.EffectSite;
-        time_step = 1;
-        cp_limit;
-        infusion_limit;
+        drug;                        % Type of the drug. The infusion rate
+                                     % each four drug can be computed using
+                                     % the TCI method.
+        mode = TciMode.EffectSite;   % Either effect-site or plasma targeted TCI
+        time_step = 1;               % Discretization time step 
+        cp_limit;                    % Maximum allowed plasma concentration
+        infusion_limit;              % Maximum implementable drug's infusion rate
 
-        pkpd_model;                 % A discrete state space model (four states)
-        pk_model;
-        pd_model;
+        pkpd_model;                  % A discrete state space model (four states)
+        pk_model;                    % Continuous pk model object
+        pd_model;                    % Continuous pd model object
 
-        u;
-        target;
-        x_internal;                 % internal state of the PK-PD model
+        u;                           % Computed infusion rate
+        target;                      % Target value of effect-site or plasma concentration. 
+                                     % The unit is either [µg/mL] or [ng/mL]
+                                     % depending on the type of the drug
+        x_internal;                  % Internal state of the PK-PD model
     end
     properties (Access = private)
-        zero_input_plasma;
-        step_plasma;
-        zero_input_effect;
-        impluse_effect;
+        zero_input_plasma;           % Plasma concentration response to zero infusion rate where cp(t=0) = 1
+        step_plasma;                 % Plasma concentration response to u(t) = 1
+        zero_input_effect;           % Effect-site concentration response to zero infusion rate where ce(t=0) = 1
+        impluse_effect;              % Effect-site concentration response to u(t=0) = 1
     end
 
     methods
@@ -75,8 +88,8 @@ classdef TCI < handle
             var_pk = {age, weight, height, gender, bmi, lbm, opiates, blood_sampling};
             var_pd = {age, weight, blood_sampling};
 
-            if p.Results.pd_models('prop') == Model.Wav
-                % Parameters to define the Propofol PD model
+            if p.Results.pd_models('prop') == Model.PATIENT_SPECIFIC
+                % Parameters to define the Propofol patient-specific PD model
                 e0 = patient_data(7);
                 ke0_prop = patient_data(8);
                 delay = patient_data(9);
@@ -86,6 +99,7 @@ classdef TCI < handle
                 var_pd = [var_pd, pd_data];
             end
 
+            % Based on the drug, different setting is used to initialize the TCI system.    
             switch obj.drug
                 case Drug.Propofol
                     obj.tci_setting_propofol(p.Results.pk_models('prop'), p.Results.pd_models('prop'), var_pk, var_pd);
@@ -97,9 +111,14 @@ classdef TCI < handle
                 case Drug.Rocuronium
                     obj.tci_setting_rocuronium(p.Results.pk_models('rocu'), var_pk);
             end
+            % The prediction horizons to compute zero input, step, and
+            % impulse responses. 
 
             pred_horizon_plasma = 7;
             pred_horizon_effect = 50;
+
+            % For either of TCI mode, the internal model is defined, and
+            % the necessary concentration responses are computed. 
 
             if obj.mode == TciMode.Plasma
                 obj.pkpd_model = obj.pk_model;
@@ -122,7 +141,7 @@ classdef TCI < handle
             else
                 error('The target concentration %s is not supported', obj.mode);
             end
-
+            % Initialize the states of the internal model 
             obj.x_internal = zeros(size(obj.pkpd_model.A,2),1);
             
         end
@@ -150,7 +169,8 @@ classdef TCI < handle
         function tci_setting_remifentanil(obj,model_remi_pk, model_remi_pd, var_pk, var_pd)
         % Set the TCI settings for remifentanil.
         % Parameters:
-        %   model: pharmacokinetic model for remifentanil [Model]
+        %   model_remi_pk: pharmacokinetic model for remifentanil [Model]
+        %   model_remi_pd: pharmacodynamic model for remifentanil [Model]
 
             pk_object = PharmacokineticModel;
             pk_object = pk_object.pk_model(Drug.Remifentanil, model_remi_pk, var_pk{:});
@@ -164,6 +184,8 @@ classdef TCI < handle
 
         function tci_setting_rocuronium(obj, model, var_pk)
         % Set the TCI settings for rocuronium.
+        % Parameters:
+        %   model: only one type of pk-pd model exists for rocuronium [Model]
             pk_object = PharmacokineticModel;
             pk_object = pk_object.pk_model(Drug.Rocuronium, model, var_pk{:});
             pd_object = PharmacodynamicNMB;
@@ -173,10 +195,16 @@ classdef TCI < handle
             obj.pd_model = pd_object.pd_ce;
         end
         function tci_setting_norepinephrine(obj, model, var_pk)
+        % Set the TCI settings for norepinephrine.
+        % Parameters:
+        %   model: only one type of pk model exists for norepinephrine [Model]
             pk_object = PharmacokineticModel;
-            pk_object = pk_object.pk_model(Drug.Norepinephrine, Model.Joachim, var_pk{:});
+            pk_object = pk_object.pk_model(Drug.Norepinephrine, model, var_pk{:});
 
             obj.pk_model = pk_object.pk;
+            % Since no effect-site concentration is defined for
+            % norepinephrine, the only available mode for this drug is
+            % plasma targeted.
             obj.mode = TciMode.Plasma;
         end
         
@@ -195,9 +223,11 @@ classdef TCI < handle
             for i = 1:n_step
                 u_interv = tci_interv(obj,obj.zero_input_plasma,obj.step_plasma, ...
                     obj.zero_input_effect,obj.impluse_effect,obj.x_internal);
+                % Apply infusion rate limit
                 if u_interv > obj.infusion_limit
                     u_interv = obj.infusion_limit;
                 end
+                % Update the internal states
                 obj.x_internal= obj.pkpd_model.A*obj.x_internal + obj.pkpd_model.B*u_interv;
                 obj.u = [obj.u; u_interv];
             end
@@ -219,7 +249,14 @@ classdef TCI < handle
                  % If error < 5 percent,  go to plasma control
                     yfree = zero_input_plasma*x0;
                     target_arr = obj.target*ones(length(yfree), 1);
-                    u_interv = 1/(step_input_plasma'*step_input_plasma)*step_input_plasma'*(target_arr-yfree); % Least squares solution. (H_step_Plasma'*H_step_Plasma) is a scalar because the control horizon is 1. This is a matrix multiplication, simple algebra.
+                    % The infusion rate is computed based on the difference
+                    % between the target and the concentration of the
+                    % effect site. We want:
+                    % target = yfree + step_response * u_interv
+                    % Since the equation may not have an exact solution we
+                    % use the least-squares method to find the best u
+                    % that minimizes the error.
+                    u_interv = 1/(step_input_plasma'*step_input_plasma)*step_input_plasma'*(target_arr-yfree); 
             elseif obj.mode == TciMode.EffectSite % Effect site control
                 % Otherwise go to effect site control
                 yfree = zero_input_effect*x0;
@@ -229,9 +266,8 @@ classdef TCI < handle
                 if peak > obj.target
                     u_interv = 0;
                 else
-                    % simultaneously solve for jpeak and infusion (u) as proposed in
-                    % schafer and gregg, 1992d
-                    tpeak = peakfree; tpeakold =0;
+                    % simultaneously solve for tpeak and u as proposed in [Shafer et al. 1992]
+                    tpeak = peakfree; tpeakold =0; % tpeak is the time at which the peak concentration is reached
                     infusion = 0; 
                     while tpeak ~= tpeakold
                         tpeakold = tpeak;

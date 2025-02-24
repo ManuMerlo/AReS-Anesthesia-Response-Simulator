@@ -8,7 +8,7 @@ import scipy.signal as signal
 # Custom class for discrete state-space systems
 class StateSpaceDiscrete:
     """
-    Class for discrete state-space systems
+    Class to define discrete state-space systems
     """
     def __init__(self, A, B, C, D, dt):
         self.A = A
@@ -18,24 +18,33 @@ class StateSpaceDiscrete:
         self.dt = dt
 
 class TCI:
+    """
+        TCI: Target Controlled Infusion
+
+        Based on the targeted compartments, the TCI mode can be either
+        effect-site [Shafer et al. 1992] or plasma targeted [Bailey et al. 1991].
+
+        The limits of plasma concentration and infusion rate are determined
+        for safety considerations [Van Poucke et al. 2004]
+    """
     def __init__(self, drug, mode, cp_limit, infusion_limit, time_step):
-        self.drug = drug
-        self.mode = mode
-        self.time_step = time_step
-        self.cp_limit = cp_limit
-        self.infusion_limit = infusion_limit
+        self.drug = drug                       # Type of the drug. The infusion rate each four drug can be computed using the TCI method.
+        self.mode = mode                       # Either effect-site or plasma targeted TCI
+        self.time_step = time_step             # Discretization time step
+        self.cp_limit = cp_limit               # Maximum allowed plasma concentration
+        self.infusion_limit = infusion_limit   # Maximum implementable drug's infusion rate
 
-        self.pkpd_model = None
-        self.pk_model = None
-        self.pd_model = None
+        self.pkpd_model = None                 # A discrete state space model (four states)
+        self.pk_model = None                   #  Continuous pk model object
+        self.pd_model = None                   # Continuous pd model object
 
-        self.u = []
-        self.target = None
-        self.x_internal = None
-        self._zero_input_plasma = None
-        self._step_plasma = None
-        self._zero_input_effect = None
-        self._impulse_effect = None
+        self.u = []                            # Computed infusion rate
+        self.target = None                     # Target value of effect-site or plasma concentration. The unit is either [µg/mL] or [ng/mL] depending on the type of the drug
+        self.x_internal = None                 # Internal state of the PK-PD model
+        self._zero_input_plasma = None         # Plasma concentration response to zero infusion rate where cp(t=0) = 1
+        self._step_plasma = None               # Plasma concentration response to u(t) = 1
+        self._zero_input_effect = None         # Effect-site concentration response to zero infusion rate where ce(t=0) = 1
+        self._impulse_effect = None            # Effect-site concentration response to u(t=0) = 1
 
     @classmethod
     def create(self, drug: Drug, mode: TciMode, cp_limit: float, infusion_limit: float, time_step: int, **kwargs):
@@ -58,6 +67,8 @@ class TCI:
         tci = TCI(drug, mode, cp_limit, infusion_limit, time_step)
 
         data = kwargs['data']
+
+        # Patient demographic parameters
         height = data[0]
         weight = data[1]
         age = data[2]
@@ -76,18 +87,20 @@ class TCI:
                   'opiates': opiates, 'blood_sampling': blood_sampling}
 
         if pd_models.get('prop', Model.PATIENT_SPECIFIC) == Model.PATIENT_SPECIFIC:
+            # Parameters to define the Propofol patient-specific PD model
             if len(data) < 11:
                 raise ValueError(
                     'The data list should contain 11 elements to initialize the patient with a patient-specific PD model.')
-            pd_wav_parameter = {
+            pd_patient_specific_parameter = {
                 'e0': data[6],
                 'ke0': data[7],
                 'delay': data[8],
                 'ec50': 0.01 * data[6] * data[9],
                 'gamma': data[10]
             }
-            kwargs['pd_wav_parameter'] = pd_wav_parameter
+            kwargs['pd_patient_specific_parameter'] = pd_patient_specific_parameter
 
+        # Based on the drug, different setting is used to initialize the TCI system.
         if drug == Drug.PROPOFOL:
             tci.tci_setting_propofol(pk_models=pk_models, pd_models=pd_models, **kwargs)
         elif drug == Drug.REMIFENTANIL:
@@ -96,10 +109,11 @@ class TCI:
             tci.tci_setting_norepinephrine(pk_models=pk_models, **kwargs)
         elif drug == Drug.ROCURONIUM:
             tci.tci_setting_rocuronium(pk_models=pk_models, **kwargs)
-
+        # The prediction horizons to compute zero input, step, and impulse responses.
         pred_horizon_plasma = 7
         pred_horizon_effect = 50
 
+        # For either of TCI mode, the internal model is defined, and the necessary concentration responses are computed.
         if tci.mode == TciMode.PLASMA:
             discrete_system = signal.cont2discrete((tci.pk_model.A, tci.pk_model.B, tci.pk_model.C, tci.pk_model.D),
                                                    tci.time_step)
@@ -131,16 +145,16 @@ class TCI:
             # Response when an impulse input is applied during the prediction horizon for the effect compartment
             tci._impulse_effect = tci.impulseResponse_ce(tci.pkpd_model.C[3,:], pred_horizon_effect)
 
-        # column vector of internal states
+        # Initialize the states of the internal model
         tci.x_internal = np.zeros((tci.pkpd_model.A.shape[1], 1))
         return tci
 
     def tci_setting_propofol(self, pk_models, pd_models, **kwargs):
         """
         Set the pharmacokinetic and pharmacodynamic models for propofol.
-        :param pk_models: pharmacokinetic models for the drugs
+        :param pk_models: pharmacokinetic model for propofol
         :type pk_models: dict
-        :param pd_models: pharmacodynamic models for the drugs
+        :param pd_models: pharmacodynamic model for propofol
         :type pd_models: dict
         :param kwargs: additional parameters for pharmacokinetic and pharmacodynamic models
         """
@@ -154,9 +168,9 @@ class TCI:
     def tci_setting_remifentanil(self, pk_models, pd_models, **kwargs):
         """
         Set the pharmacokinetic and pharmacodynamic models for remifentanil.
-        :param pk_models: pharmacokinetic models for the drugs
+        :param pk_models: pharmacokinetic model for remifentanil
         :type pk_models: dict
-        :param pd_models: pharmacodynamic models for the drugs
+        :param pd_models: pharmacodynamic model for remifentanil
         :type pd_models: dict
         :param kwargs: additional parameters for pharmacokinetic and pharmacodynamic models
         :type kwargs: dict
@@ -170,7 +184,7 @@ class TCI:
     def tci_setting_rocuronium(self, pk_models, **kwargs):
         """
         Set the pharmacokinetic and pharmacodynamic models for rocuronium.
-        :param pk_models: pharmacokinetic models for the drugs
+        :param pk_models: only one type of pk-pd model exists for rocuronium [Model]
         :type pk_models: dict
         :param kwargs: additional parameters for pharmacokinetic and pharmacodynamic models
         :type kwargs: dict
@@ -182,13 +196,14 @@ class TCI:
     def tci_setting_norepinephrine(self, pk_models, **kwargs):
         """
         Set the pharmacokinetic model for norepinephrine.
-        :param pk_models: pharmacokinetic models for the drugs
+        :param pk_models: only one type of pk model exists for norepinephrine [Model]
         :type pk_models: dict
         :param kwargs: additional parameters for pharmacokinetic model
         :type kwargs: dict
         """
         pk_model = pk_models.get('nore', Model.JOACHIM)
         self.pk_model = Pharmacokinetic.create(Drug.NOREPINEPHRINE, pk_model, **kwargs).ss
+        # Since no effect-site concentration is defined for norepinephrine, the only available mode for this drug is plasma targeted.
         self.mode = TciMode.PLASMA
 
     def reset_state(self):
@@ -212,9 +227,11 @@ class TCI:
         for i in range(n_step):
             u_interv = self.tci_interv(self._zero_input_plasma, self._step_plasma, self._zero_input_effect,
                                        self._impulse_effect, self.x_internal)
+            # Apply infusion rate limit
             if u_interv > self.infusion_limit:
                 u_interv = self.infusion_limit
 
+            # Update the internal states
             self.x_internal = self.pkpd_model.A @ self.x_internal + self.pkpd_model.B * u_interv
 
             self.u.append(u_interv)
@@ -243,8 +260,8 @@ class TCI:
                 self.mode == TciMode.EFFECT_SITE and abs(x0[3] - self.target) < self.target * 0.05):
             yfree = _zero_input_plasma @ x0
             target_arr = self.target * np.ones((len(yfree), 1))
-            # the infusion rate is computed based on the difference between the target and the concentration of the effect site
-            # we want: target = yfree + step_response * u_interv
+            # The infusion rate is computed based on the difference between the target and the concentration of the effect site
+            # We want: target = yfree + step_response * u_interv
             # Since the equation may not have an exact solution we use the least-squares method to find the best u that minimizes the error.
             u_interv = 1 / (step_input_plasma.T @ step_input_plasma) * step_input_plasma.T @ (target_arr - yfree)
             while isinstance(u_interv, list):
@@ -257,8 +274,9 @@ class TCI:
             if peak > self.target:
                 u_interv = 0
             else:
-                tpeak = peakfree  # tpeak is the time at which the peak concentration is reached
-                tpeakold = -1  # To take into account the mismatch in the indexing of matlab and python
+                # Simultaneously solve for tpeak and u as proposed in [Shafer et al. 1992]
+                tpeak = peakfree   # tpeak is the time at which the peak concentration is reached
+                tpeakold = -1      # To take into account the mismatch in the indexing of matlab and python
                 infusion = 0
                 while tpeak != tpeakold:
                     tpeakold = tpeak
