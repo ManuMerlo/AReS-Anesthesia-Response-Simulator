@@ -64,6 +64,7 @@ classdef Patient < handle
 
         c_nore_arr = []                         % Simulated norepinephrine blood concentraion
         cp_rocu_arr = []                        % Simulated rocuronium plasma concentraion
+        ce_rocu_arr = []                        % Simulated rocuronium effect-site concentraion
 
         u_prop_arr = []                         % Propofol infusion rate
         u_remi_arr = []                         % Remifentanil infusion rate
@@ -323,12 +324,17 @@ classdef Patient < handle
             cp_rocu = obj.get_last_value_or_default(obj.cp_rocu_arr, 0);
             ce_prop = obj.get_last_value_or_default(obj.ce_prop_arr, 0);
             ce_remi = obj.get_last_value_or_default(obj.ce_remi_arr, 0);
+            ce_rocu = obj.get_last_value_or_default(obj.ce_rocu_arr, 0);
             ce_del = obj.get_last_value_or_default(obj.ce_del_arr, 0);
             ce_wav = obj.get_last_value_or_default(obj.ce_wav_arr, 0);
             ce_bis = obj.get_last_value_or_default(obj.ce_bis_arr, 0);
 
-            keys = {'wav', 'bis', 'map', 'co', 'hr', 'sv', 'tpr','nmb_m0', 'nmb_m1', 'nmb_m2', 'nmb_m3','cp_prop', 'cp_remi', 'c_nore', 'cp_rocu', 'ce_prop', 'ce_remi', 'ce_del', 'ce_wav', 'ce_bis'};
-            values = {wav_, bis_, map_, co_, hr_, sv_, tpr_, nmb_m0_, nmb_m1_, nmb_m2_, nmb_m3_, cp_prop, cp_remi, c_nore, cp_rocu, ce_prop, ce_remi, ce_del, ce_wav, ce_bis};
+            keys = {'wav', 'bis', 'map', 'co', 'hr', 'sv', 'tpr','nmb_m0',...
+                'nmb_m1', 'nmb_m2', 'nmb_m3','cp_prop', 'cp_remi', 'c_nore', ...
+                'cp_rocu', 'ce_prop', 'ce_remi', 'ce_rocu', 'ce_del', 'ce_wav', 'ce_bis'};
+            values = {wav_, bis_, map_, co_, hr_, sv_, tpr_, nmb_m0_, ...
+                nmb_m1_, nmb_m2_, nmb_m3_, cp_prop, cp_remi, c_nore, cp_rocu, ...
+                ce_prop, ce_remi, ce_rocu, ce_del, ce_wav, ce_bis};
             patient_state = containers.Map(keys, values);
         end
 
@@ -336,8 +342,14 @@ classdef Patient < handle
         % Get the patient state history
         % Returns:
         %   patient_state_history: A map containing the patient state history from the  beginning of the simulation [containers.Map]
-            keys = {'wav', 'bis', 'map', 'co', 'hr', 'sv', 'nmb_m0', 'nmb_m1', 'nmb_m2', 'nmb_m3', 'cp_prop', 'cp_remi', 'c_nore', 'cp_rocu', 'ce_prop', 'ce_remi', 'ce_del', 'ce_wav', 'ce_bis'};
-            values = { obj.wav, obj.bis, obj.map, obj.co, obj.hr, obj.sv, obj.nmb_m0, obj.nmb_m1, obj.nmb_m2, obj.nmb_m3, obj.cp_prop_arr, obj.cp_remi_arr, obj.c_nore_arr, obj.cp_rocu_arr, obj.ce_prop_arr, obj.ce_remi_arr, obj.ce_del_arr, obj.ce_wav_arr, obj.ce_bis_arr};
+            keys = {'wav', 'bis', 'map', 'co', 'hr', 'sv', 'nmb_m0', 'nmb_m1',...
+                'nmb_m2', 'nmb_m3', 'cp_prop', 'cp_remi', 'c_nore', 'cp_rocu', ...
+                'ce_prop', 'ce_remi','ce_rocu', 'ce_del', 'ce_wav', 'ce_bis'};
+            values = { obj.wav, obj.bis, obj.map, obj.co, obj.hr, obj.sv, ...
+                obj.nmb_m0, obj.nmb_m1, obj.nmb_m2, obj.nmb_m3, ...
+                obj.cp_prop_arr, obj.cp_remi_arr, obj.c_nore_arr, ...
+                obj.cp_rocu_arr, obj.ce_prop_arr, obj.ce_remi_arr, obj.ce_rocu_arr, ...
+                obj.ce_del_arr, obj.ce_wav_arr, obj.ce_bis_arr};
             patient_state_history = containers.Map(keys, values);
         end
 
@@ -410,6 +422,7 @@ classdef Patient < handle
             obj.ce_remi_arr = obj.ce_remi_arr(end);
 
             obj.cp_rocu_arr = obj.cp_rocu_arr(end);
+            obj.ce_rocu_arr = obj.ce_rocu_arr(end);
             obj.c_nore_arr = obj.c_nore_arr(end);
 
             obj.u_prop_arr = obj.u_prop_arr(end);
@@ -603,7 +616,7 @@ classdef Patient < handle
             sv_interv = sv_interv * obj.volume_status_coeff('sv');
         end
 
-        function nmb_interv = compute_nmb(obj, cp_rocu, t)
+        function [nmb_interv, ce_rocu] = compute_nmb(obj, cp_rocu, t)
         % Compute the neuromuscular blockade for a given time step
         % Parameters:
         %   cp_rocu: Rocuronium plasma concentration [array]
@@ -754,8 +767,9 @@ classdef Patient < handle
             % Compute the hemodynamic variables
             [co_interv, map_interv, hr_interv, sv_interv, tpr_interv] = obj.compute_hemodynamic_variables(cp_prop_sim, cp_remi_sim, c_nore_sim, t_sim);
 
-            % Compute the probabilities of the NMB categories
-            nmb_interv = obj.compute_nmb(cp_rocu_sim, t_sim);
+            % Compute the effect-site concentration of rocuronium and
+            % probabilities of the NMB categories
+            [nmb_interv, ce_rocu] = obj.compute_nmb(cp_rocu_sim, t_sim);
             
             % Save the stats in the recording arrays
             obj.co = [obj.co; co_interv(1:end)];
@@ -764,6 +778,7 @@ classdef Patient < handle
             obj.sv = [obj.sv; sv_interv(1:end)];
             obj.tpr = [obj.tpr; tpr_interv(1:end)];
             
+            obj.ce_rocu_arr = [obj.ce_rocu_arr; ce_rocu(1:end)];
             obj.nmb_m0 = [obj.nmb_m0; nmb_interv(1:end,1)];
             obj.nmb_m1 = [obj.nmb_m1; nmb_interv(1:end,2)];
             obj.nmb_m2 = [obj.nmb_m2; nmb_interv(1:end,3)];

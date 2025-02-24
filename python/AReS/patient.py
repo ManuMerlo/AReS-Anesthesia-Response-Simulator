@@ -171,6 +171,7 @@ class Patient:
 
         self._c_nore = np.array([], dtype=np.float64)   # Simulated norepinephrine blood concentraion
         self._cp_rocu = np.array([], dtype=np.float64)  # Simulated rocuronium plasma concentraion
+        self._ce_rocu = np.array([], dtype=np.float64)  # Simulated rocuronium effect-site concentraion
 
         self._u_prop = []                                     # Propofol infusion rate
         self._u_remi = []                                     # Remifentanil infusion rate
@@ -241,6 +242,7 @@ class Patient:
             'cp_rocu': self._cp_rocu[-1] if len(self._cp_rocu) > 0 else 0,
             'ce_prop': self._ce_prop[-1] if len(self._ce_prop) > 0 else 0,
             'ce_remi': self._ce_remi[-1] if len(self._ce_remi) > 0 else 0,
+            'ce_rocu': self._ce_rocu[-1] if len(self._ce_rocu) > 0 else 0,
             'ce_del': self._ce_del[-1] if len(self._ce_del) > 0 else 0,
             'ce_wav': self._ce_wav[-1] if len(self._ce_wav) > 0 else 0,
             'ce_bis': self._ce_bis[-1] if len(self._ce_bis) > 0 else 0
@@ -256,8 +258,8 @@ class Patient:
         return {'WAV': self._WAV, 'BIS': self._BIS, 'MAP': self._MAP, 'CO': self._CO, 'HR': self._HR, 'SV': self._SV,
                 'TPR': self._TPR, 'NMB_m0': self._NMB_m0, 'NMB_m1': self._NMB_m1, 'NMB_m2': self._NMB_m2,
                 'NMB_m3': self._NMB_m3, 'cp_prop': self._cp_prop, 'cp_remi': self._cp_remi, 'c_nore': self._c_nore,
-                'cp_rocu': self._cp_rocu, 'ce_prop': self._ce_prop, 'ce_remi': self._ce_remi, 'ce_del': self._ce_del,
-                'ce_wav': self._ce_wav, 'ce_bis': self._ce_bis}
+                'cp_rocu': self._cp_rocu, 'ce_prop': self._ce_prop, 'ce_remi': self._ce_remi, 'ce_rocu': self._ce_rocu,
+                'ce_del': self._ce_del, 'ce_wav': self._ce_wav, 'ce_bis': self._ce_bis}
 
     def get_patient_input_history(self):
         """
@@ -326,6 +328,7 @@ class Patient:
 
         self._c_nore = self._c_nore[-1:]
         self._cp_rocu = self._cp_rocu[-1:]
+        self._ce_rocu = self._ce_rocu[-1:]
 
         self._u_prop = self._u_prop[-1:]
         self._u_remi = self._u_remi[-1:]
@@ -558,7 +561,7 @@ class Patient:
         # Compute the probability for each category of NMB
         nmb = self._pd_nmb.hillfun(ce_rocu_sim)
 
-        return nmb
+        return nmb, ce_rocu_sim
 
     def step(self, u_prop: float, u_remi: float, u_nore: float, u_rocu: float, t_s: int = 5):
         """
@@ -681,16 +684,17 @@ class Patient:
                                                                                                                 cp_remi,
                                                                                                                 c_nore,
                                                                                                                 t)
-        # Compute the probabilities of the NMB categories
-        nmb = self._compute_nmb(cp_rocu, t)
+        # Compute the effect-site concentration of rocuronium and the probabilities of the NMB categories
+        nmb, ce_rocu_sim = self._compute_nmb(cp_rocu, t)
 
         # Save the stats in the recording arrays
         self._CO = np.append(self._CO, co_interval[:])
         self._MAP = np.append(self._MAP, map_interval[:])
-        self._HR = np.append(self._HR, hr_interval[:])  # remove - 1 here
+        self._HR = np.append(self._HR, hr_interval[:])
         self._SV = np.append(self._SV, sv_interval[:])
         self._TPR = np.append(self._TPR, tpr_interval[:])
 
+        self._ce_rocu = np.append(self._ce_rocu, ce_rocu_sim[:])
         self._NMB_m0 = np.append(self._NMB_m0, nmb[0, :])
         self._NMB_m1 = np.append(self._NMB_m1, nmb[1, :])
         self._NMB_m2 = np.append(self._NMB_m2, nmb[2, :])
