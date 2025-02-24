@@ -1,20 +1,19 @@
 classdef PharmacokineticModel
     properties (Access = private)
         
-        % Three compartment models
-        v1comp3
-        v2comp3
-        v3comp3
-        cl1comp3
-        cl2comp3
-        cl3comp3
-        k10
-        k12
-        k13
-        k21
-        k31
-        
-        ka
+        % Compartment models parameters
+        v1comp3             % Volume of compartment 1  [L]
+        v2comp3             % Volume of compartment 2  [L]
+        v3comp3             % Volume of compartment 3  [L]
+        cl1comp3            % Clearance rate of compartment 1 [L/min]
+        cl2comp3            % Clearance rate of compartment 2 [L/min]
+        cl3comp3            % Clearance rate of compartment 3 [L/min]
+        k10                 % Drug flow rate from compartment 1 to outside of body [1/min]
+        k12                 % Drug flow rate from compartment 1 to 2 [1/min]
+        k13                 % Drug flow rate from compartment 1 to 3 [1/min]
+        k21                 % Drug flow rate from compartment 2 to 1 [1/min]
+        k31                 % Drug flow rate from compartment 3 to 1 [1/min]
+        ka                  % Drug flow rate from depot compartment to central one [1/min]
     end
 
     properties (Access = public)
@@ -22,17 +21,19 @@ classdef PharmacokineticModel
         model
         pk
     end
-
-    methods
-
-        function par = f_aging(obj,x, age)
+    methods(Static)
+        % The helper functions defined by Eleveld et al.(2018) for propfol
+        % pk model to account for demographic parameters
+        function par = f_aging(x, age)
             par = exp(x .* (age - 35));
         end
 
-        function par = f_sigmoid(obj,x, e50, gamma)
+        function par = f_sigmoid(x, e50, gamma)
             par = (x .^ gamma) ./ (x .^ gamma + e50 .^ gamma);
         end
+    end
 
+    methods
         function obj = pk_model(obj, drug, model, varargin)
         % Set the pharmacokinetic model for the drug.
         % Parameters:
@@ -65,6 +66,8 @@ classdef PharmacokineticModel
                         bmi = varargin{5};
                         opiates = varargin{7};
                         blood_sampling = varargin{8};
+
+                        % Propofol parameters (Eleveld model)
 
                         theta_1 = 6.28;                     % V1_ref [litre]
                         theta_2 = 25.5;                     % V2_ref [litre]
@@ -131,10 +134,10 @@ classdef PharmacokineticModel
                         obj.cl3comp3 = theta_6*(obj.v3comp3/theta_3)^0.75*f_Q3maturation/f_Q3maturation_ref;
 
                         % The effect of the blood sampling site on the volume and clearance rates
-                        if strcmp(blood_sampling, 'arterial')
+                        if blood_sampling == BloodSampling.ARTERIAL
                             obj.v1comp3 = V1_arterial;
                             obj.cl2comp3 = Q2_arterial;
-                        elseif strcmp(blood_sampling, 'venous')
+                        elseif blood_sampling == BloodSampling.VENOUS
                             obj.v1comp3 = V1_venous;
                             obj.cl2comp3 = Q2_venous;
                         end
@@ -145,6 +148,8 @@ classdef PharmacokineticModel
 
                     if obj.model == Model.Minto
                         lbm = varargin{6};
+
+                        % Remifentanil parameters (Minto model)
 
                         obj.v1comp3 = 5.1 - 0.0201 * (age - 40) + 0.072 * (lbm - 55);
                         obj.v2comp3 = 9.82 - 0.0811 * (age - 40) + 0.108 * (lbm - 55);
@@ -157,6 +162,8 @@ classdef PharmacokineticModel
                         weight = varargin{2};
                         gender = varargin{4};
                         bmi = varargin{5};
+
+                        % Remifentanil parameters (Eleveld model)
 
                         v1_ref = 5.81;   % [L]
                         v2_ref = 8.82;   % [L]
@@ -200,7 +207,9 @@ classdef PharmacokineticModel
                     end
 
                 case Drug.Norepinephrine
-                    % Norepinephrine parameters 
+
+                    % Norepinephrine parameters (Joachim model)
+
                     if obj.model == Model.Joachim
                         lbm = varargin{6};
                         obj.k10 = exp(0.64*log(lbm) - 5.52);    % [1/s]
@@ -214,7 +223,9 @@ classdef PharmacokineticModel
                         
                 case Drug.Rocuronium
                     if obj.model == Model.Dahe
+
                         % Rocuronium parameters (Da Haes Model)
+
                         weight = varargin{2};
                         obj.v1comp3 = 42*weight/1000;     % [L]
                         obj.v2comp3 = 40*weight/1000;
@@ -239,7 +250,7 @@ classdef PharmacokineticModel
 
             % Initialize the state-space matrices based on the drug
             switch obj.drug
-                case {Drug.Propofol, Drug.Remifentanil, Drug.Rocuronium}
+                case {Drug.Propofol, Drug.Remifentanil, Drug.Rocuronium} % Three compartment model
                     obj.k10 = obj.cl1comp3 / obj.v1comp3;
                     obj.k12 = obj.cl2comp3 / obj.v1comp3;
                     obj.k13 = obj.cl3comp3 / obj.v1comp3;
@@ -247,14 +258,14 @@ classdef PharmacokineticModel
                     obj.k31 = obj.cl3comp3 / obj.v3comp3;
 
                     A = [-(obj.k10 + obj.k12 + obj.k13) obj.k21 obj.k31;...
-                        obj.k12 -obj.k21 0; obj.k13 0 -obj.k31]/60; % simulation is in seconds
+                        obj.k12 -obj.k21 0; obj.k13 0 -obj.k31]/60;      % simulation is in seconds
                     B = [1/obj.v1comp3;0;0];
                     C = [1 0 0];
                     D = 0;
                     pk = ss(A, B, C, D);
 
 
-                case Drug.Norepinephrine             % One compartment PK model
+                case Drug.Norepinephrine                                 % Two compartment plus depot PK model
                     A = [-(obj.k10 + obj.k12) obj.k21 obj.ka;...
                          obj.k12 -obj.k21 0; 0 0 -obj.ka];
                     B = [0; 0; 1/obj.v1comp3];

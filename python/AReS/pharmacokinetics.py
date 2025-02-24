@@ -12,19 +12,19 @@ class Pharmacokinetic:
         self.ss = None
 
         # Three compartment model parameters
-        self._v1comp3 = None  # [l]
-        self._v2comp3 = None  # [l]
-        self._v3comp3 = None  # [l]
-        self._cl1comp3 = None
-        self._cl2comp3 = None
-        self._cl3comp3 = None  # [l / min]
+        self._v1comp3 = None    # Volume of compartment 1 [L]
+        self._v2comp3 = None    # Volume of compartment 2 [L]
+        self._v3comp3 = None    # Volume of compartment 3 [L]
+        self._cl1comp3 = None   # Clearance rate of compartment 1 [L/min]
+        self._cl2comp3 = None   # Clearance rate of compartment 2 [L/min]
+        self._cl3comp3 = None   # Clearance rate of compartment 3 [L/min]
 
-        self._k10 = None
-        self._k12 = None
-        self._k13 = None
-        self._k21 = None
-        self._k31 = None
-        self._ka = None
+        self._k10 = None        # Drug flow rate from compartment 1 to outside of body [1/min]
+        self._k12 = None        # Drug flow rate from compartment 1 to 2 [1/min]
+        self._k13 = None        # Drug flow rate from compartment 1 to 3 [1/min]
+        self._k21 = None        # Drug flow rate from compartment 2 to 1 [1/min]
+        self._k31 = None        # Drug flow rate from compartment 2 to 3 [1/min]
+        self._ka = None         # Drug flow rate from depot compartment to central one [1/min]
 
     # Factory method to create the pharmacokinetic model
     @classmethod
@@ -53,6 +53,8 @@ class Pharmacokinetic:
 
         return pk_model
 
+    # The helper functions defined by Eleveld et al.(2018) for propfol
+    # pk model to account for demographic parameters
     @staticmethod
     def f_aging(x, age):
         return np.exp(x * (age - 35))
@@ -298,7 +300,7 @@ class Pharmacokinetic:
         """
         ss = None
 
-        if self.drug in [Drug.PROPOFOL, Drug.REMIFENTANIL, Drug.ROCURONIUM]:
+        if self.drug in [Drug.PROPOFOL, Drug.REMIFENTANIL, Drug.ROCURONIUM]: # Three compartment model
             k10 = self._cl1comp3 / self._v1comp3
             k12 = self._cl2comp3 / self._v1comp3
             k13 = self._cl3comp3 / self._v1comp3
@@ -307,7 +309,7 @@ class Pharmacokinetic:
 
             A = np.array([[-(k10 + k12 + k13), k21, k31],
                           [k12, -k21, 0],
-                          [k13, 0, -k31]]) / 60
+                          [k13, 0, -k31]]) / 60 # simulation is in seconds
 
             B = np.array([[1 / self._v1comp3],
                           [0],
