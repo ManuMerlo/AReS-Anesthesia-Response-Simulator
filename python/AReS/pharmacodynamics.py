@@ -225,11 +225,11 @@ class PharmacodynamicDoH:
 
 class PharmacodynamicHemo:
     """
-    TPR: total peripheral resistance
-    SV: stroke volume
-    HR: heart rate
-    MAP: mean arterial pressure
-    CO: cardiac output
+    TPR: total peripheral resistance [mmHg mL^-1 min]
+    SV: stroke volume [mL]
+    HR: heart rate [beats min^-1]
+    MAP: mean arterial pressure [mmHg]
+    CO: cardiac output [L/min]
     TDE: time-dependent effect
 
     Please refer to the following two papers for this PD model:

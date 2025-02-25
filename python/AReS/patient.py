@@ -145,9 +145,9 @@ class Patient:
 
         # Disturbance model and initial values of the disturbances lists
         self._disturbance_model = disturbance_model
-        self._doh_dis = [0]
-        self._hr_dis = [0]
-        self._map_dis = [0]
+        self._doh_dis = [0]         # [%]
+        self._hr_dis = [0]          # [beats * min^-1]
+        self._map_dis = [0]         # [mmHg]
 
         # Volume status model
         self._volume_status = volume_status
@@ -160,34 +160,34 @@ class Patient:
         self._steady_state_values = deque(maxlen=180)
 
         # Create the arrays to record the plasma and effect-site concentration, infusion rates, and the predicted stats
-        self._cp_prop = np.array([], dtype=np.float64)  # Simulated propofol plasma concentraion
-        self._ce_prop = np.array([], dtype=np.float64)  # Simulated propofol effect-site concentraion
+        self._cp_prop = np.array([], dtype=np.float64)  # Simulated propofol plasma concentraion [µg * mL^-1]
+        self._ce_prop = np.array([], dtype=np.float64)  # Simulated propofol effect-site concentraion [µg * mL^-1]
         self._ce_del = np.array([], dtype=np.float64)   # Simulated variable that represent the effect of delay  in pd model on propofol effect-site concentraion
         self._ce_wav = np.array([], dtype=np.float64)   # Simulated variable that represent the effect of WAV filter on propofol effect-site concentraion
         self._ce_bis = np.array([], dtype=np.float64)   # Simulated variable that represent the effect of BIS filter on propofol effect-site concentraion
 
-        self._cp_remi = np.array([], dtype=np.float64)  # Simulated remifentanil plasma concentraion
-        self._ce_remi = np.array([], dtype=np.float64)  # Simulated remifentanil effect-site concentraion
+        self._cp_remi = np.array([], dtype=np.float64)  # Simulated remifentanil plasma concentraion [ng * mL^-1]
+        self._ce_remi = np.array([], dtype=np.float64)  # Simulated remifentanil effect-site concentraion [ng * mL^-1]
 
-        self._c_nore = np.array([], dtype=np.float64)   # Simulated norepinephrine blood concentraion
-        self._cp_rocu = np.array([], dtype=np.float64)  # Simulated rocuronium plasma concentraion
-        self._ce_rocu = np.array([], dtype=np.float64)  # Simulated rocuronium effect-site concentraion
+        self._c_nore = np.array([], dtype=np.float64)   # Simulated norepinephrine blood concentraion [ng * mL^-1]
+        self._cp_rocu = np.array([], dtype=np.float64)  # Simulated rocuronium plasma concentraion [µg * mL^-1]
+        self._ce_rocu = np.array([], dtype=np.float64)  # Simulated rocuronium effect-site concentraion [µg * mL^-1]
 
-        self._u_prop = []                                     # Propofol infusion rate
-        self._u_remi = []                                     # Remifentanil infusion rate
-        self._u_nore = []                                     # Norepinephrine infusion rate
-        self._u_rocu = []                                     # Rocuronium infusion rate
+        self._u_prop = []                                     # Propofol infusion rate [mg * sec^-1]
+        self._u_remi = []                                     # Remifentanil infusion rate [µg * sec^-1]
+        self._u_nore = []                                     # Norepinephrine infusion rate [µg * sec^-1]
+        self._u_rocu = []                                     # Rocuronium infusion rate [mg * sec^-1]
 
         # Doh
         self._WAV = np.array([], dtype=np.float64)      # Simulated WAV Index
         self._BIS = np.array([], dtype=np.float64)      # Simulated BIS Index
 
         # Hemodynamic variables
-        self._MAP = np.array([], dtype=np.float64)      # Simulated Mean Arterial Pressure
-        self._CO = np.array([], dtype=np.float64)       # Simulated Cardiac Output
-        self._HR = np.array([], dtype=np.float64)       # Simulated Heart Rate
-        self._SV = np.array([], dtype=np.float64)       # Simulated Stroke Volume
-        self._TPR = np.array([], dtype=np.float64)      # Simulated Total Peripheral Resistance
+        self._MAP = np.array([], dtype=np.float64)      # Simulated Mean Arterial Pressure [mmHg]
+        self._CO = np.array([], dtype=np.float64)       # Simulated Cardiac Output [L/min]
+        self._HR = np.array([], dtype=np.float64)       # Simulated Heart Rate [beats min^-1]
+        self._SV = np.array([], dtype=np.float64)       # Simulated Stroke Volume [mL]
+        self._TPR = np.array([], dtype=np.float64)      # Simulated Total Peripheral Resistance [mmHg mL^-1 min]
 
         # Neuromuscular blockade
         self._NMB_m0 = np.array([], dtype=np.float64)   # Simulated probability that m = 0 (NMB is moderate)

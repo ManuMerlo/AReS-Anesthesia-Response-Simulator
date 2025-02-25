@@ -149,7 +149,7 @@ def plot_simulation(u_prop, u_remi, u_nore, u_rocu, cp_prop, cp_remi, c_nore, cp
         color = cmap(norm(i)) if cmap else None
         label = labels[i] if labels else ""
         plot_data(axs[0], t_sim[i], u_rocu_val, color, label, 'Time [min]', '$u_{Rocu} [mg/s]$')
-        plot_data(axs[1], t_sim[i], cp_rocu_val, color, label, 'Time [min]', '$C_{p,Ro} [\mu g/ml]$')
+        plot_data(axs[1], t_sim[i], cp_rocu_val, color, label, 'Time [min]', '$C_{p,Rocu} [\mu g/ml]$')
         plot_data(axs[2], t_sim[i], nmb_m0_val, color, label, 'Time [min]', 'Probability (NMB m0)')
         plot_data(axs[3], t_sim[i], nmb_m1_val, color, label, 'Time [min]', 'Probability (NMB m1)')
         plot_data(axs[4], t_sim[i], nmb_m2_val, color, label, 'Time [min]', 'Probability (NMB m2)')

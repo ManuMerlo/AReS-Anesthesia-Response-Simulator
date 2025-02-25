@@ -19,36 +19,36 @@ class Simulator:
         # List of the patients simulated up to now
         self._patients = []
 
-        # List of lists to store patients' propofol and remifentanil infusion rates
-        self._u_prop_all = []
-        self._u_remi_all = []
-        self._u_nore_all = []
-        self._u_rocu_all = []
+        # List of arrays to store patients' propofol, remifentanil, norepinehrpne, and rocuronoium infusion rates.
+        self._u_prop_all = []       # [mg * sec^-1]
+        self._u_remi_all = []       # [µg * sec^-1]
+        self._u_nore_all = []       # [µg * sec^-1]
+        self._u_rocu_all = []       # [mg * sec^-1]
 
         # List of lists to store patients' propofol, remifentanil, norepinephrine, and rocuronium plasma concentrations
-        # and effect site concentrations of propofol and remifentanil
-        self._cp_prop_all = []
-        self._ce_prop_all = []
-        self._cp_remi_all = []
-        self._ce_remi_all = []
-        self._c_nore_all = []
-        self._cp_rocu_all = []
+        # and effect site concentrations of propofol, remifentanil, and rocuronium
+        self._cp_prop_all = []      # [µg * mL^-1]
+        self._ce_prop_all = []      # [µg * mL^-1]
+        self._cp_remi_all = []      # [ng * mL^-1]
+        self._ce_remi_all = []      # [ng * mL^-1]
+        self._c_nore_all = []       # [ng * mL^-1]
+        self._cp_rocu_all = []      # [µg * mL^-1]
+        self._ce_rocu_all = []      #[ µg * mL^-1]
 
-        # Delayed version of ce and ce incorporating sensor dynamics (WAV and BIS)
-        self._ce_del_all = []
-        self._ce_wav_all = []
-        self._ce_bis_all = []
+        self._ce_del_all = [] # The variable that represents the effect of delay in pd model on propofol effect-site concentraion for all patients
+        self._ce_wav_all = [] # The variable that represents the effect of WAV filter on propofol effect-site concentraion for all patients
+        self._ce_bis_all = [] # The variable that represents the effect of BIS filter on propofol effect-site concentraion
 
         # List of lists to store the WAV and BIS values of patients
         self._WAV_all = []
         self._BIS_all = []
 
         # List of lists to store the hemodynamics variables of patients
-        self._MAP_all = []
-        self._CO_all = []
-        self._HR_all = []
-        self._SV_all = []
-        self._TPR_all = []
+        self._MAP_all = []      # Mean Arterial Pressure [mmHg]
+        self._CO_all = []       # Cardiac Output [L/min]
+        self._HR_all = []       # Heart Rate [beats min^-1]
+        self._SV_all = []       # Stroke Volume [mL]
+        self._TPR_all = []      # Total Peripheral Resistance [mmHg mL^-1 min]
 
         # List of lists to store the neuromuscular blockade values of patients
         self._NMB_m0_all = []
@@ -90,6 +90,7 @@ class Simulator:
             '_cp_rocu_all': [],
             '_ce_prop_all': [],
             '_ce_remi_all': [],
+            '_ce_rocu_all': [],
             '_ce_del_all': [],
             '_ce_wav_all': [],
             '_ce_bis_all': [],
@@ -123,24 +124,24 @@ class Simulator:
     def get_patient_state(self):
         """
         :returns: The state of the current patient at the current time:
-        [WAV, BIS, MAP, CO, HR, SV,NMB_m0, NMB_m1, NMB_m2, NMB_m3, cp_prop, cp_remi, c_nore, cp_rocu, ce_prop, ce_remi, ce_del, ce_wav, ce_bis]
+        [WAV, BIS, MAP, CO, HR, SV,NMB_m0, NMB_m1, NMB_m2, NMB_m3, cp_prop, cp_remi, c_nore, cp_rocu, ce_prop, ce_remi, ce_rocu, ce_del, ce_wav, ce_bis]
         :rtype: dict
         """
         state = self._current_patient.get_patient_state()
         c_nore = [x * self.nore_molweight / 1000 for x in state['c_nore']] if isinstance(state['c_nore'], list) else \
-            state['c_nore'] * self.nore_molweight / 1000
+            state['c_nore'] * self.nore_molweight / 1000        # Norepinephrine blood concentration in [ng/ml]
         state['c_nore'] = c_nore
         return state
 
     def get_patient_state_history(self):
         """
         :returns: The state history from the start of the simulation to the current time for the current patient:
-        [WAV, BIS, MAP, CO, HR, SV,NMB_m0, NMB_m1, NMB_m2, NMB_m3, cp_prop, cp_remi, c_nore, cp_rocu, ce_prop, ce_remi, ce_del, ce_wav, ce_bis]
+        [WAV, BIS, MAP, CO, HR, SV,NMB_m0, NMB_m1, NMB_m2, NMB_m3, cp_prop, cp_remi, c_nore, cp_rocu, ce_prop, ce_remi, ce_rocu, ce_del, ce_wav, ce_bis]
         :rtype: dict
         """
         state = self._current_patient.get_patient_state_history()
         c_nore = [x * self.nore_molweight / 1000 for x in state['c_nore']] if isinstance(state['c_nore'], list) else \
-            state['c_nore'] * self.nore_molweight / 1000
+            state['c_nore'] * self.nore_molweight / 1000        # Norepinephrine blood concentration in [ng/ml]
         state['c_nore'] = c_nore
         return state
 
@@ -150,7 +151,7 @@ class Simulator:
         :rtype: dict
         """
         input_history = self._current_patient.get_patient_input_history()
-        # Convert the norepinephrine infusion rates from [nmol * sec^-1] to [ng * sec^-1]
+        # Convert the norepinephrine infusion rates from [nmol * sec^-1] to [µg * sec^-1]
         u_nore = [x * self.nore_molweight / 1000 for x in input_history['u_nore']] if isinstance(
             input_history['u_nore'], list) else input_history['u_nore'] * self.nore_molweight / 1000
         input_history['u_nore'] = u_nore
@@ -372,8 +373,8 @@ class Simulator:
                                   seed=None):
         """
         Initialize the simulation with patient parameters directly.
-        :param data: The patient data [height, weight, age, gender, bmi, lbm, E0, k_d , delay, C50P, gammaP, rms_nonlin]
-        Note: The parameters [E0, k_d , delay, C50P, gammaP, rms_nonlin] need to be provided only the for PATIENT_SPECIFIC PD model for propofol.
+        :param data: The patient data [height, weight, age, gender, bmi, lbm, E0, k_d , delay, C50P, gammaP]
+        Note: The parameters [E0, k_d , delay, C50P, gammaP] need to be provided only the for PATIENT_SPECIFIC PD model for propofol.
         :type data: list
         :param t_sim: The simulation time in seconds
         :type t_sim: int
@@ -387,7 +388,7 @@ class Simulator:
         :type internal_states: dict
         :param output_init: The initial values for map, hr, sv
         :type output_init: dict
-        :param pk_models: The pharmacokinetic models for propofol and remifentanil
+        :param pk_models: The pharmacokinetic models for each drug
         :type pk_models: dict
         :param pd_models: The pharmacodynamic models for propofol and remifentanil
         :type pd_models: dict
@@ -429,7 +430,7 @@ class Simulator:
         :type u_remi: list
         :param u_nore: A list of norepinephrine inputs [µg * sec^-1]
         :type u_nore: list
-        :param u_rocu: A list of rocuronium inputs [µg * sec^-1]
+        :param u_rocu: A list of rocuronium inputs [mg * sec^-1]
         :type u_rocu: list
         """
         self._check_run_inputs(u_prop, u_remi, u_nore, u_rocu)
@@ -447,14 +448,14 @@ class Simulator:
         :type u_remi: float
         :param u_nore: The norepinephrine input [µg * sec^-1]
         :type u_nore: float
-        :param u_rocu: The rocuronium input [µg * sec^-1]
+        :param u_rocu: The rocuronium input [mg * sec^-1]
         :type u_rocu: float
         """
 
         if self._current_patient is None:
             raise ValueError("No patient data found. Please add a simulation first.")
 
-        u_nore = u_nore * 1000 / self.nore_molweight  # Norepinephrine in [nmol/s]
+        u_nore = u_nore * 1000 / self.nore_molweight  # Norepinephrine infusion rate in [nmol/s]
 
         self._current_patient.step(u_prop, u_remi, u_nore, u_rocu, self._t_s)
 
@@ -515,6 +516,7 @@ class Simulator:
         self._cp_rocu_all.append(state['cp_rocu'])
         self._ce_prop_all.append(state['ce_prop'])
         self._ce_remi_all.append(state['ce_remi'])
+        self._ce_rocu_all.append(state['ce_rocu'])
         self._ce_del_all.append(state['ce_del'])
         self._ce_wav_all.append(state['ce_wav'])
         self._ce_bis_all.append(state['ce_bis'])
@@ -636,7 +638,7 @@ class Simulator:
         columns_mapping = {
             '_u_prop_all': 'u_prop', '_u_remi_all': 'u_remi', '_u_nore_all': 'u_nore', '_u_rocu_all': 'u_rocu',
             '_cp_prop_all': 'cp_prop', '_cp_remi_all': 'cp_remi', '_c_nore_all': 'c_nore', '_cp_rocu_all': 'cp_rocu',
-            '_ce_prop_all': 'ce_prop', '_ce_remi_all': 'ce_remi', '_ce_del_all': 'ce_del', '_ce_wav_all': 'ce_wav',
+            '_ce_prop_all': 'ce_prop', '_ce_remi_all': 'ce_remi', '_ce_rocu_all': 'ce_rocu', '_ce_del_all': 'ce_del', '_ce_wav_all': 'ce_wav',
             '_ce_bis_all': 'ce_bis', '_WAV_all': 'wav', '_BIS_all': 'bis', '_MAP_all': 'map', '_CO_all': 'co',
             '_HR_all': 'hr', '_SV_all': 'sv', '_NMB_m0_all': 'nmb_m0', '_NMB_m1_all': 'nmb_m1', '_NMB_m2_all': 'nmb_m2',
             '_NMB_m3_all': 'nmb_m3'
@@ -662,6 +664,9 @@ class Simulator:
 
 
 class SimulatorConcentration(Simulator):
+    """
+    In this class, we use TCI objects to compute infusion rates of each drug based on the target concentration.
+    """
     def __init__(self):
         super().__init__()
         self.tci_prop = None
@@ -695,7 +700,7 @@ class SimulatorConcentration(Simulator):
 
         """
         Initialize the simulation with given patient data and simulation parameters.
-        :param patient_data: The patient data [height, weight, age, gender, E0, k_d , delay, C50P, gammaP, rms_nonlin]ù
+        :param patient_data: The patient data [height, weight, age, gender, E0, k_d , delay, C50P, gammaP]
         :type patient_data: list
         :param t_sim: The simulation time in seconds
         :type t_sim: int
@@ -709,7 +714,7 @@ class SimulatorConcentration(Simulator):
         :type internal_states: dict
         :param output_init: The initial values for map, hr, sv
         :type output_init: dict
-        :param pk_models: The pharmacokinetic models for propofol and remifentanil
+        :param pk_models: The pharmacokinetic models for each drug
         :type pk_models: dict
         :param pd_models: The pharmacodynamic models for propofol and remifentanil
         :type pd_models: dict
@@ -834,7 +839,7 @@ class SimulatorConcentration(Simulator):
         :type internal_states: dict
         :param output_init: The initial values for map, hr, sv. Default is None.
         :type output_init: dict
-        :param pk_models: The pharmacokinetic models for propofol and remifentanil. Default is None.
+        :param pk_models: The pharmacokinetic models for each drug. Default is None.
         :type pk_models: dict
         :param pd_models: The pharmacodynamic models for propofol and remifentanil. Default is None.
         :type pd_models: dict
@@ -902,8 +907,8 @@ class SimulatorConcentration(Simulator):
                                   **kwargs):
         """
         Initialize the simulation with patient parameters directly.
-        :param data: The patient data [height, weight, age, gender, E0, k_d , delay, C50P, gammaP, rms_nonlin]
-        Note: The parameters [E0, k_d , delay, C50P, gammaP, rms_nonlin] need to be provided only the for PATIENT_SPECIFIC PD model for propofol.
+        :param data: The patient data [height, weight, age, gender, E0, k_d , delay, C50P, gammaP]
+        Note: The parameters [E0, k_d , delay, C50P, gammaP] need to be provided only the for PATIENT_SPECIFIC PD model for propofol.
         :type data: list
         :param t_sim: The simulation time in seconds
         :type t_sim: int
@@ -917,7 +922,7 @@ class SimulatorConcentration(Simulator):
         :type internal_states: dict
         :param output_init: The initial values for map, hr, sv
         :type output_init: dict
-        :param pk_models: The pharmacokinetic models for propofol and remifentanil
+        :param pk_models: The pharmacokinetic models for each drug
         :type pk_models: dict
         :param pd_models: The pharmacodynamic models for propofol and remifentanil
         :type pd_models: dict
@@ -961,13 +966,13 @@ class SimulatorConcentration(Simulator):
     def run_complete_simulation(self, t_prop: list, t_remi: list, t_nore: list, t_rocu: list):
         """
         Simulates the patient for the given inputs from the start to the end of the simulation.
-        :param t_prop: A list of propofol concentrations targets for the TCI in [µg/ml].
+        :param t_prop: A list of propofol concentrations targets for the TCI in [µg/mL].
         :type t_prop: list
-        :param t_remi: A list of remifentanil concentrations targets for the TCI in [ng/ml].
+        :param t_remi: A list of remifentanil concentrations targets for the TCI in [ng/mL].
         :type t_remi: list
-        :param t_nore: A list of norepinephrine concentrations targets for the TCI in [ng/ml].
+        :param t_nore: A list of norepinephrine concentrations targets for the TCI in [ng/mL].
         :type t_nore: list
-        :param t_rocu: A list of rocuronium concentrations targets for the TCI in [ng/ml].
+        :param t_rocu: A list of rocuronium concentrations targets for the TCI in [µg/mL].
         :type t_rocu: list
         """
 
@@ -980,20 +985,20 @@ class SimulatorConcentration(Simulator):
     def one_step_simulation(self, t_prop: float, t_remi: float, t_nore: float, t_rocu: float):
         """
         Simulates the patient for a single step with the given inputs.
-        :param t_prop: The propofol target concentration for the TCI in [µg/ml].
+        :param t_prop: The propofol target concentration for the TCI in [µg/mL].
         :type t_prop: float
-        :param t_remi: The remifentanil target concentration for the TCI in [ng/ml].
+        :param t_remi: The remifentanil target concentration for the TCI in [ng/mL].
         :type t_remi: float
-        :param t_nore: The norepinephrine target concentration for the TCI in [ng/ml].
+        :param t_nore: The norepinephrine target concentration for the TCI in [ng/mL].
         :type t_nore: float
-        :param t_rocu: The rocuronium target concentration for the TCI in [ng/ml].
+        :param t_rocu: The rocuronium target concentration for the TCI in [µg/mL].
         :type t_rocu: float
         """
 
         if self._current_patient is None:
             raise ValueError("No patient data found. Please add a simulation first.")
 
-        t_nore = t_nore * 1000 / self.nore_molweight  # Norepinephrine in [nmol/L]
+        t_nore = t_nore * 1000 / self.nore_molweight  # Norepinephrine plasma concentration in [nmol/L]
 
         u_prop = self.tci_prop.compute_infusion(1, t_prop)[0]
         u_remi = self.tci_remi.compute_infusion(1, t_remi)[0]
