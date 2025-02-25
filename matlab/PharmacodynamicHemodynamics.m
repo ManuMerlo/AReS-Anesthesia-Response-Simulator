@@ -1,10 +1,10 @@
 classdef PharmacodynamicHemodynamics
     %{
-    TPR: total peripheral resistance
-    SV: stroke volume
-    HR: heart rate
-    MAP: mean arterial pressure
-    CO: cardiac output
+    TPR: total peripheral resistance [mmHg mL^-1 min]
+    SV: stroke volume [mL]
+    HR: heart rate [beats min^-1]
+    MAP: mean arterial pressure [mmHg]
+    CO: cardiac output [L/min]
     TDE: time-dependent effect
 
     Please refer to the following two papers for this PD model:
@@ -59,9 +59,9 @@ classdef PharmacodynamicHemodynamics
         hr_sv = 0.312;          % magnitude of the inverse effect of HR on SV
         ltde_hr = 0.121;        % percentage of increased baseline HR caused by the time-dependent effect
         ltde_sv = 0.0899;       % percentage of increased baseline HR caused by the time-dependent effect
-        base_sv = 82.2;         % base value of SV [ml]
+        base_sv = 82.2;         % base value of SV [mL]
         base_hr = 56.1;         % base value of HR [beats min^-1]
-        base_tpr = 0.0163;      % base value of TPR [mmHg ml^-1 min]   
+        base_tpr = 0.0163;      % base value of TPR [mmHg mL^-1 min]   
     end
 
     methods

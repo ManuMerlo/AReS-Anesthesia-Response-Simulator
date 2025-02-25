@@ -15,11 +15,11 @@ function main()
             t_s = 5;
 
             pk_models = containers.Map({'prop', 'remi'}, {Model.Eleveld, Model.Eleveld});
-            pd_models = containers.Map({'prop', 'remi'}, {Model.Wav, Model.Eleveld});
+            pd_models = containers.Map({'prop', 'remi'}, {Model.PATIENT_SPECIFIC, Model.Eleveld});
 
             seed = k;
 
-            var = {'opiates', true, 'blood_sampling', 'arterial','interaction', interaction, 'doh_measure', dohMeasure,'pk_models', pk_models, 'pd_models', pd_models};
+            var = {'opiates', true, 'blood_sampling', BloodSampling.ARTERIAL,'interaction', interaction, 'doh_measure', dohMeasure,'pk_models', pk_models, 'pd_models', pd_models};
 
             simulator.init_simulation_from_file(k,t_sim,t_s,var{:});
 
@@ -66,14 +66,14 @@ function main()
         disp('Patient id:' + string(k));
         
         pk_models = containers.Map({'prop', 'remi'}, {Model.Eleveld, Model.Minto});
-        pd_models = containers.Map({'prop', 'remi'}, {Model.Wav, Model.Minto});
+        pd_models = containers.Map({'prop', 'remi'}, {Model.PATIENT_SPECIFIC, Model.Minto});
         interaction = Interaction.Surface;
         dohMeasure = DoHMeasure.Both;
         vs=volume_status;
 
         t_sim = 30 * 60;
         t_s = 5;
-        var = {'opiates', true, 'blood_sampling', 'arterial',...
+        var = {'opiates', true, 'blood_sampling', BloodSampling.ARTERIAL,...
             'interaction', interaction, 'doh_measure', dohMeasure,...
             'stimuli', stimuli, 'volume_status', vs, 'pk_models', ...
             pk_models, 'pd_models', pd_models, 'seed', seed};
@@ -93,19 +93,19 @@ function main()
 
         simulator.save_simulation()
 
-        patient_data = simulator.get_patient_demographics();
-        disp(patient_data);
-        patient_state = simulator.get_patient_state();
-        disp(patient_state);
-        patient_state_history = simulator.get_patient_state_history();
-        disp(patient_state_history);
-        co = patient_state_history('co');
-        disp(co)
-        patient_phase = simulator.get_patient_phase();
-        disp(patient_phase);
-
-        results = simulator.get_patient_results();
-        disp(results);
+        % patient_data = simulator.get_patient_demographics();
+        % disp(patient_data);
+        % patient_state = simulator.get_patient_state();
+        % disp(patient_state);
+        % patient_state_history = simulator.get_patient_state_history();
+        % disp(patient_state_history);
+        % co = patient_state_history('co');
+        % disp(co)
+        % patient_phase = simulator.get_patient_phase();
+        % disp(patient_phase);
+        % 
+        % results = simulator.get_patient_results();
+        % disp(results);
 
         model_prop_pk_str = char(pk_models('prop'));
         model_prop_pd_str = char(pd_models('prop'));  
@@ -131,14 +131,14 @@ function main()
             limits_TCI = containers.Map({'cp_limit_prop', 'cp_limit_remi', 'infusion_limit_prop', 'infusion_limit_remi'}, {25, 20, 2 , 2});
 
             pk_models = containers.Map({'prop', 'remi'}, {Model.Eleveld, Model.Minto});
-            pd_models = containers.Map({'prop', 'remi'}, {Model.Wav, Model.Minto});
+            pd_models = containers.Map({'prop', 'remi'}, {Model.PATIENT_SPECIFIC, Model.Minto});
 
             t_sim = 30 * 60;
             t_s = 5;
 
             seed = k;
 
-            var = {'opiates', true, 'blood_sampling', 'arterial', 'interaction',interaction, 'doh_measure', dohMeasure,'modes_TCI', modes_TCI, 'pk_models', pk_models, 'pd_models', pd_models, 'pk_models_TCI', pk_models, 'pd_models_TCI', pd_models, 'limits_TCI',limits_TCI};
+            var = {'opiates', true, 'blood_sampling', BloodSampling.ARTERIAL, 'interaction',interaction, 'doh_measure', dohMeasure,'modes_TCI', modes_TCI, 'pk_models', pk_models, 'pd_models', pd_models, 'pk_models_TCI', pk_models, 'pd_models_TCI', pd_models, 'limits_TCI',limits_TCI};
 
             simulator.init_simulation_from_file(k,t_sim,t_s,var{:});
 
@@ -195,7 +195,7 @@ function main()
         limits_TCI = containers.Map({'cp_limit_prop', 'cp_limit_remi', 'cp_limit_nore', 'cp_limit_rocu','infusion_limit_prop'}, {20, 10, 9, 10, 2});
 
         pk_models = containers.Map({'prop', 'remi'}, {Model.Eleveld, Model.Minto});
-        pd_models = containers.Map({'prop', 'remi'}, {Model.Wav, Model.Minto});
+        pd_models = containers.Map({'prop', 'remi'}, {Model.PATIENT_SPECIFIC, Model.Minto});
         pk_models_TCI = containers.Map({'prop', 'remi'}, {Model.Eleveld, Model.Minto});
         pd_models_TCI = containers.Map({'prop', 'remi'}, {Model.Eleveld, Model.Minto});
 
@@ -203,7 +203,7 @@ function main()
 
         t_sim = 30 * 60;
         t_s = 5;
-        var = {'opiates', true, 'blood_sampling', 'arterial', 'interaction',...
+        var = {'opiates', true, 'blood_sampling', BloodSampling.ARTERIAL, 'interaction',...
             interaction, 'doh_measure', dohMeasure, 'stimuli', stimuli, 'modes_TCI',...
             modes_TCI, 'volume_status', vs, 'pk_models', pk_models, 'pd_models',...
             pd_models, 'pk_models_TCI', pk_models_TCI, 'pd_models_TCI', pd_models_TCI,'output_init',output_init,'seed',seed};
@@ -293,23 +293,23 @@ addpath('simulations')
 stimuli = containers.Map('KeyType', 'double', 'ValueType', 'any');
 
 % Add stimuli entries as structures
-stimuli(12*60) = struct('disturbanceType', DisturbanceType.SKIN_MANIPULATION, 'duration', 10 * 60, 'deltas', [5, 3]);
-stimuli(6*60)  = struct('disturbanceType', DisturbanceType.INCISION,          'duration', 5 * 60,  'deltas', [10, 3]);
-stimuli(1*60)  = struct('disturbanceType', DisturbanceType.INTUBATION,        'duration', 3 * 60,  'deltas', [10, 3]);
-stimuli(23*60) = struct('disturbanceType', DisturbanceType.SUTURE,            'duration', 5 * 60,  'deltas', [2, 2]);
+stimuli(12*60) = struct('disturbanceType', DisturbanceType.SKIN_MANIPULATION, 'duration', 10 * 60, 'deltas', [5, 5, 10]);
+stimuli(6*60)  = struct('disturbanceType', DisturbanceType.INCISION,          'duration', 5 * 60,  'deltas', [10, 10, 20]);
+stimuli(1*60)  = struct('disturbanceType', DisturbanceType.INTUBATION,        'duration', 3 * 60,  'deltas', [10, 10, 20]);
+stimuli(23*60) = struct('disturbanceType', DisturbanceType.SUTURE,            'duration', 5 * 60,  'deltas', [2, 2, 4]);
 
 volume_status = containers.Map('KeyType', 'double', 'ValueType', 'any');
 volume_status(200) = VolumeStatus.Hypovolemia;
 volume_status(800) = VolumeStatus.Normovolemia;
-volume_status(1200) = VolumeStatus.Hypervolemia;
+volume_status(1200) = VolumeStatus.Hypovolemia;
 
 % stimuli = [];
-volume_status = [];
+% volume_status = [];
 
 % step_by_step_simulation(stimuli, volume_status);
 % complete_simulation(stimuli, volume_status);
-complete_simulation_TCI(stimuli, volume_status);
-% step_by_step_simulation_TCI(stimuli, volume_status);
+% complete_simulation_TCI(stimuli, volume_status);
+step_by_step_simulation_TCI(stimuli, volume_status);
 
 
 % file1 = '/Users/manuelamerlo/Documents/psm_v2/simulations/infusion_rates/target_concentrations/pk_Eleveld_pd_Schnider_off_TCI_pk_Eleveld_pd_Schnider.csv';
@@ -318,7 +318,7 @@ complete_simulation_TCI(stimuli, volume_status);
 % compare_files(file1, file2);
 
 % pk_models = [Model.Schnider, Model.Eleveld];
-% pd_models = [Model.Wav, Model.Eleveld, Model.Schnider];
+% pd_models = [Model.PATIENT_SPECIFIC, Model.Eleveld, Model.Schnider];
 % interactions = [Interaction.No_interaction, Interaction.Surface];
 
 % for pk_model = pk_models

@@ -1,5 +1,6 @@
 classdef Factory
-    % Factory class to create the simulator
+    % Factory class to create the simulator using different input setting
+    % modes
     methods (Static)
         function obj = createSimulator(mode)
             if mode == SimulatorMode.Infusion

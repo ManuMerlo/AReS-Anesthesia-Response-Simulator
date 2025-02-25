@@ -1,43 +1,55 @@
 % matlab version of the simulator
 classdef Simulator < handle
     properties ( Access = protected )
-        patients = Patient.empty;
+        patients = Patient.empty;       % List of simulated patients
         
-        u_prop_all = [];
-        u_remi_all = [];
-        u_nore_all = [];
-        u_rocu_all = [];
+        % List of arrays to store patients' propofol, remifentanil,
+        % norepinehrpne, and rocuronoium infusion rates.
+        u_prop_all = [];    % [mg * sec^-1]
+        u_remi_all = [];    % [µg * sec^-1]
+        u_nore_all = [];    % [µg * sec^-1]
+        u_rocu_all = [];    % [mg * sec^-1]
+
+        % List of lists to store patients' propofol, remifentanil, 
+        % norepinephrine, and rocuronium plasma concentrations and
+        % effect site concentrations of propofol, remifentanil, and rocuronium
         
-        cp_prop_all = [];
-        ce_prop_all = [];
-        cp_remi_all = [];
-        ce_remi_all = [];
-        c_nore_all = [];
-        cp_rocu_all = [];
+        cp_prop_all = [];   % [µg * mL^-1]
+        ce_prop_all = [];   % [µg * mL^-1]
+        cp_remi_all = [];   % [ng * mL^-1]
+        ce_remi_all = [];   % [ng * mL^-1]
+        c_nore_all = [];    % [ng * mL^-1]
+        cp_rocu_all = [];   % [µg * mL^-1]
+        ce_rocu_all = [];   % [µg * mL^-1]
+        
 
-        ce_del_all = [];
-        ce_wav_all = [];
-        ce_bis_all = [];
-
+        ce_del_all = [];     % The variable that represents the effect of delay in pd model on propofol effect-site concentraion of all patients
+        ce_wav_all = [];     % The variable that represents the effect of WAV filter on propofol effect-site concentraion of all patients
+        ce_bis_all = [];     % The variable that represents the effect of BIS filter on propofol effect-site concentraion of all patients
+        
+        % List of lists to store the WAV and BIS values of patients
         wav_all = [];
         bis_all = [];
         
-        co_all = [];
-        map_all = [];
-        hr_all = [];
-        sv_all = [];
+        % List of lists to store the hemodynamics variables of patients
+        co_all = [];        % Cardiac Output [L/min]
+        map_all = [];       % Mean Arterial Pressure [mmHg]
+        hr_all = [];        % Heart Rate [beats min^-1]
+        sv_all = [];        % Stroke Volume [mL]
+        tpr_all = []        % Total Peripheral Resistance [mmHg mL^-1 min]
         
+        % List of lists to store the probabilities of neuromuscular blockade categories of patients
         nmb_m0_all = [];
         nmb_m1_all = [];
         nmb_m2_all = [];
         nmb_m3_all = [];
 
-        t_sim = 0 
-        t_s = 1
-        steps = 0
+        t_sim = 0                % The simulation time in seconds for the current patient
+        t_s = 1                  % The sampling time in seconds for the simulation of the current patient
+        steps = 0                % Stores the simulation steps. It is updated once a simulation step is completed.               
         current_time = 0;
 
-        nore_molweight = 169.18; % [g/mol]
+        nore_molweight = 169.18; % Molecular weight of norepinephrine in [g/mol]
     end
 
     properties(Access = public)
@@ -63,6 +75,7 @@ classdef Simulator < handle
             obj.cp_rocu_all = [];
             obj.ce_prop_all = [];
             obj.ce_remi_all = [];
+            obj.ce_rocu_all = [];
             obj.ce_del_all = [];
             obj.ce_wav_all = [];
             obj.ce_bis_all = [];
@@ -72,6 +85,7 @@ classdef Simulator < handle
             obj.map_all = [];
             obj.hr_all = [];
             obj.sv_all = [];
+            obj.tpr_all = [];
             obj.nmb_m0_all = [];
             obj.nmb_m1_all = [];
             obj.nmb_m2_all = [];
@@ -90,27 +104,33 @@ classdef Simulator < handle
 
         function patient_state = get_patient_state(obj)
         % Return a dictionary with the patient state for the current patient:
-            patient_state = obj.current_patient.get_patient_state();
+        % [WAV, BIS, MAP, CO, HR, SV,NMB_m0, NMB_m1, NMB_m2, NMB_m3, cp_prop, 
+        % cp_remi, c_nore, cp_rocu, ce_prop, ce_remi, ce_rocu, ce_del, ce_wav, ce_bis]
+            state = obj.current_patient.get_patient_state();
             c_nore = state('c_nore');
-            c_nore = c_nore * obj.nore_molweight / 1000; % Norepinephrine in [µg/ml]
+            c_nore = c_nore * obj.nore_molweight / 1000; % Norepinephrine blood concentration in [ng/ml]
             state('c_nore') = c_nore;
             patient_state = state;
         end
 
         function patient_state_history = get_patient_state_history(obj)
-        % Return a dictionary with the patient state history for the current patient:
+        % Return a dictionary with the patient state history from the start
+        % of the simulation to the current time for the current patient:
+        % [WAV, BIS, MAP, CO, HR, SV,NMB_m0, NMB_m1, NMB_m2, NMB_m3, cp_prop,
+        % cp_remi, c_nore, cp_rocu, ce_prop, ce_remi, ce_rocu, ce_del, ce_wav, ce_bis]
             state = obj.current_patient.get_patient_state_history();
             c_nore = state('c_nore');
-            c_nore = c_nore * obj.nore_molweight / 1000; % Norepinephrine in [µg/ml]
+            c_nore = c_nore * obj.nore_molweight / 1000; % Norepinephrine blood concentration in [ng/ml]
             state('c_nore') = c_nore;
             patient_state_history = state;
         end
 
         function patient_input_history = get_patient_input_history(obj)
-        % Return a dictionary with the patient input history for the current patient:
+        % Return a dictionary with the patient input history from the start
+        % of the simulation to the current time for the current patient:
             input = obj.current_patient.get_patient_input_history();
             input_nore = input('u_nore');
-            input_nore = input_nore * obj.nore_molweight / 1000; % Norepinephrine in [µg/s]
+            input_nore = input_nore * obj.nore_molweight / 1000; % Norepinephrine infusion rate in [µg/s]
             input('u_nore') = input_nore;
             patient_input_history = input;
         end
@@ -151,6 +171,7 @@ classdef Simulator < handle
             end
         end
 
+        % Get all the attributes ending with '_all' and that are lists and return the data for the given simulation
         patient_results = containers.Map();
         variables = obj.getPrivateProperties();
 
@@ -178,6 +199,8 @@ classdef Simulator < handle
         %   varargin: optional arguments 
         %       opiates: boolean to include opiates [boolean]
         %       blood_sampling: type of blood sampling [string]
+        %       internal_states : The internal states of the patient
+        %       output_init: The initial values for map, hr, sv
         %       interaction: type of interaction [Interaction]
         %       doh_measure: type of depth of hypnosis measure [DoHMeasure]
         %       stimuli: stimuli for the simulation [map]
@@ -248,6 +271,8 @@ classdef Simulator < handle
         %   varargin: optional arguments
         %      opiates: boolean to include opiates [boolean]
         %      blood_sampling: type of blood sampling [string]
+        %      internal_states : The internal states of the patient
+        %      output_init: The initial values for map, hr, sv
         %      pk_models: pharmacokinetic models for propofol, remifentanil, norepinephrine and rocuronium [map]
         %      pd_models: pharmacodynamic models for propofol and remifentanil [map]
         %      interaction: type of interaction [Interaction]
@@ -310,12 +335,14 @@ classdef Simulator < handle
         function init_simulation_from_data(obj, data, t_sim, t_s, varargin)
         % Initialize the simulation using patient data from a matrix.
         % Parameters:
-        %   data: patient data [height, weight, age, gender, E0, k_d , delay, C50P, gammaP, rms_nonlin][array]
+        %   data: patient data [height, weight, age, gender, E0, k_d , delay, CE50P, gammaP, rms_nonlin][array]
         %   t_sim: simulation time [double]
         %   t_s: simulation step size [double]
         %   varargin: optional arguments
         %      opiates: boolean to include opiates [boolean]
         %      blood_sampling: type of blood sampling [string]
+        %      internal_states : The internal states of the patient
+        %      output_init: The initial values for map, hr, sv
         %      pk_models: pharmacokinetic models for propofol, remifentanil, norepinephrine and rocuronium [map]
         %      pd_models: pharmacodynamic models for propofol and remifentanil [map]
         %      interaction: type of interaction [Interaction]
@@ -366,7 +393,7 @@ classdef Simulator < handle
         %   u_prop: propofol input [list]       [mg * sec^-1]
         %   u_remi: remifentanil input [list]   [µg * sec^-1]
         %   u_nore: norepinephrine input [list] [µg * sec^-1]
-        %   u_rocu: rocuronium input [list]     [µg * sec^-1]
+        %   u_rocu: rocuronium input [list]     [mg * sec^-1]
 
             obj.check_run_inputs(u_prop, u_remi, u_nore, u_rocu);
             
@@ -382,13 +409,13 @@ classdef Simulator < handle
         %   u_prop: propofol input [double]       [mg * sec^-1]
         %   u_remi: remifentanil input [double]   [µg * sec^-1]
         %   u_nore: norepinephrine input [double] [µg * sec^-1]
-        %   u_rocu: rocuronium input [double]     [µg * sec^-1]
+        %   u_rocu: rocuronium input [double]     [mg * sec^-1]
 
             if isempty(obj.current_patient)
                 error('No patient data found. Please add the data for a simulation first.');
             end
             
-            u_nore = u_nore * 1000 / obj.nore_molweight; % Norepinephrine in [nmol/s]
+            u_nore = u_nore * 1000 / obj.nore_molweight; % Norepinephrine infusion rate in [nmol/s]
 
             obj.current_patient.step(u_prop, u_remi, u_nore, u_rocu, obj.t_s);
             obj.current_time = obj.current_time + obj.t_s;
@@ -428,6 +455,7 @@ classdef Simulator < handle
             obj.co_all = [obj.co_all, state('co')];
             obj.hr_all = [obj.hr_all, state('hr')];
             obj.sv_all = [obj.sv_all, state('sv')];
+            obj.tpr_all = [obj.tpr_all, state('tpr')];
 
             % Add the neuro-muscular blockade 
             obj.nmb_m0_all = [obj.nmb_m0_all, state('nmb_m0')];
@@ -443,6 +471,7 @@ classdef Simulator < handle
             obj.cp_rocu_all = [obj.cp_rocu_all, state('cp_rocu')];
             obj.ce_prop_all = [obj.ce_prop_all, state('ce_prop')];
             obj.ce_remi_all = [obj.ce_remi_all, state('ce_remi')];
+            obj.ce_rocu_all = [obj.ce_rocu_all, state('ce_rocu')];
 
             obj.ce_del_all = [obj.ce_del_all, state('ce_del')];
             obj.ce_wav_all = [obj.ce_wav_all, state('ce_wav')];
@@ -496,8 +525,8 @@ classdef Simulator < handle
                 'u_prop_all', 'u_prop', 'u_remi_all', 'u_remi', 'u_nore_all', 'u_nore', ...
                 'u_rocu_all', 'u_rocu', 'cp_prop_all', 'cp_prop', 'cp_remi_all', 'cp_remi', ...
                 'c_nore_all', 'c_nore', 'cp_rocu_all', 'cp_rocu', 'ce_prop_all', 'ce_prop', ...
-                'ce_remi_all', 'ce_remi', 'ce_del_all', 'ce_del', 'ce_wav_all', 'ce_wav', ...
-                'ce_bis_all', 'ce_bis', 'wav_all', 'wav', 'bis_all', 'bis', ...
+                'ce_remi_all', 'ce_remi', 'ce_rocu_all', 'ce_rocu', 'ce_del_all', 'ce_del',...
+                'ce_wav_all', 'ce_wav', 'ce_bis_all', 'ce_bis', 'wav_all', 'wav', 'bis_all', 'bis', ...
                 'map_all', 'map', 'co_all', 'co', 'hr_all', 'hr', 'sv_all', 'sv', ...
                 'nmb_m0_all', 'nmb_m0', 'nmb_m1_all', 'nmb_m1', 'nmb_m2_all', 'nmb_m2', 'nmb_m3_all', 'nmb_m3');
 

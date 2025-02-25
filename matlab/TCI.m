@@ -45,8 +45,8 @@ classdef TCI < handle
         %   infusion_limit: maximum infusion rate [double]
         %   time_step: time step [double]
         %   varargin: optional arguments
-        %       model_prop_pk_TCI: pharmacokinetic model for propofol [Model]
-        %       model_prop_pd_TCI: pharmacodynamic model for propofol [Model]
+        %       pk_models: pharmacokinetic model for each drug [Model]
+        %       pd_models: pharmacodynamic model for propofol and remifentanil [Model]
         %       patient_data: patient data [array]
         %       opiates: opiates [bool]
         %       blood_sampling: blood sampling [string]
@@ -100,16 +100,48 @@ classdef TCI < handle
             end
 
             % Based on the drug, different setting is used to initialize the TCI system.    
+            % The default PK-PD model for Propofol is Eleveld PK-Eleveld PD
+            % The default PK-PD model for Remifentanil is Eleveld PK-Eleveld PD
             switch obj.drug
                 case Drug.Propofol
-                    obj.tci_setting_propofol(p.Results.pk_models('prop'), p.Results.pd_models('prop'), var_pk, var_pd);
+                    if isempty(p.Results.pk_models('prop'))
+                        model_prop_pk = Model.Eleveld;
+                    else
+                        model_prop_pk = p.Results.pk_models('prop');
+                    end
+                    if isempty(p.Results.pk_models('prop'))
+                        model_prop_pd = Model.Eleveld;
+                    else
+                        model_prop_pd = p.Results.pk_models('prop');
+                    end
+                    obj.tci_setting_propofol(model_prop_pk, model_prop_pd, var_pk, var_pd);
                 case Drug.Remifentanil
-                    obj.tci_setting_remifentanil(p.Results.pk_models('remi'), p.Results.pd_models('remi'), var_pk, var_pd);
+                    if isempty(p.Results.pk_models('remi'))
+                        model_remi_pk = Model.Eleveld;
+                    else
+                        model_remi_pk = p.Results.pk_models('remi');
+                    end
+                    if isempty(p.Results.pk_models('remi'))
+                        model_remi_pd = Model.Eleveld;
+                    else
+                        model_remi_pd = p.Results.pk_models('remi');
+                    end
+                    obj.tci_setting_remifentanil(model_remi_pk, model_remi_pd, var_pk, var_pd);
                 case  Drug.Norepinephrine
-                    obj.tci_setting_norepinephrine(p.Results.pk_models('nore'), var_pk);
+                    if isempty(p.Results.pk_models('nore'))
+                        model = Model.Joachim;
+                    else
+                        model = p.Results.pk_models('nore');
+                    end
+                    obj.tci_setting_norepinephrine(model, var_pk);
                     obj.mode = TciMode.Plasma;
                 case Drug.Rocuronium
-                    obj.tci_setting_rocuronium(p.Results.pk_models('rocu'), var_pk);
+                    if isempty(p.Results.pk_models('rocu'))
+                        model = Model.Dahe;
+                    else
+                        model = p.Results.pk_models('rocu');
+                    end
+                    obj.tci_setting_rocuronium(model, var_pk);
             end
             % The prediction horizons to compute zero input, step, and
             % impulse responses. 

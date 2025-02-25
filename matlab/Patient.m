@@ -22,8 +22,8 @@ classdef Patient < handle
 
         disturbance_model                       % Disturbance model
         doh_dis = zeros(1, 1)                   % The stimuli effect on depth of hypnois initialized at zero
-        hr_dis = zeros(1, 1)                    % The stimuli effect on heart rate initialized at zero
-        map_dis = zeros(1, 1)                   % The stimuli effect on mean arterial pressure initialized at zero
+        hr_dis = zeros(1, 1)                    % The stimuli effect on heart rate initialized at zero [beats * min^-1]
+        map_dis = zeros(1, 1)                   % The stimuli effect on mean arterial pressure initialized at zero [mmHg]
 
         patient_phase = PatientPhase.Induction  % Phase of anesthesia that can be induction or maintenance
         maintenance_time = 0
@@ -53,32 +53,32 @@ classdef Patient < handle
         
         hemo_init                               % Initial values of hemodynamic variables
 
-        cp_prop_arr = []                        % Simulated propofol plasma concentraion
-        ce_prop_arr = []                        % Simulated propofol effect-site concentraion
-        ce_del_arr = []                         % Simulated variable that represent the effect of delay in pd model on propofol effect-site concentraion
-        ce_wav_arr = []                         % Simulated variable that represent the effect of WAV filter on propofol effect-site concentraion
-        ce_bis_arr = []                         % Simulated variable that represent the effect of BIS filter on propofol effect-site concentraion
+        cp_prop_arr = []                        % Simulated propofol plasma concentraion [µg * mL^-1]
+        ce_prop_arr = []                        % Simulated propofol effect-site concentraion [µg * mL^-1]
+        ce_del_arr = []                         % Simulated variable that represents the effect of delay in pd model on propofol effect-site concentraion
+        ce_wav_arr = []                         % Simulated variable that represents the effect of WAV filter on propofol effect-site concentraion
+        ce_bis_arr = []                         % Simulated variable that represents the effect of BIS filter on propofol effect-site concentraion
 
-        cp_remi_arr = []                        % Simulated remifentanil plasma concentraion
-        ce_remi_arr = []                        % Simulated remifentanil effect-site concentraion
+        cp_remi_arr = []                        % Simulated remifentanil plasma concentraion [ng * mL^-1]
+        ce_remi_arr = []                        % Simulated remifentanil effect-site concentraion [ng * mL^-1]
 
-        c_nore_arr = []                         % Simulated norepinephrine blood concentraion
-        cp_rocu_arr = []                        % Simulated rocuronium plasma concentraion
-        ce_rocu_arr = []                        % Simulated rocuronium effect-site concentraion
+        c_nore_arr = []                         % Simulated norepinephrine blood concentraion [ng * mL^-1]
+        cp_rocu_arr = []                        % Simulated rocuronium plasma concentraion [µg * mL^-1]
+        ce_rocu_arr = []                        % Simulated rocuronium effect-site concentraion [µg * mL^-1]
 
-        u_prop_arr = []                         % Propofol infusion rate
-        u_remi_arr = []                         % Remifentanil infusion rate
-        u_nore_arr = []                         % Norepinephrine infusion rate
-        u_rocu_arr = []                         % Rocuronium infusion rate
+        u_prop_arr = []                         % Propofol infusion rate [mg * sec^-1]
+        u_remi_arr = []                         % Remifentanil infusion rate [µg * sec^-1]
+        u_nore_arr = []                         % Norepinephrine infusion rate [µg * sec^-1]
+        u_rocu_arr = []                         % Rocuronium infusion rate [mg * sec^-1]
 
         wav = []                                % Simulated WAV Index
         bis = []                                % Simulated BIS index
 
-        map = []                                % Simulated Mean Arterial Pressure
-        co = []                                 % Simulated Cardiac Output
-        hr = []                                 % Simulated Heart Rate
-        sv = []                                 % Simulated Stroke Volume
-        tpr = []                                % Simulated Total Peripheral Resistance
+        map = []                                % Simulated Mean Arterial Pressure [mmHg]
+        co = []                                 % Simulated Cardiac Output [L/min]
+        hr = []                                 % Simulated Heart Rate [beats min^-1]
+        sv = []                                 % Simulated Stroke Volume [mL]
+        tpr = []                                % Simulated Total Peripheral Resistance [mmHg mL^-1 min]
 
         nmb_m0 = []                             % Simulated probability that m = 0 (NMB is moderate)
         nmb_m1 = []                             % Simulated probability that m = 1 (NMB is deep)
@@ -342,10 +342,10 @@ classdef Patient < handle
         % Get the patient state history
         % Returns:
         %   patient_state_history: A map containing the patient state history from the  beginning of the simulation [containers.Map]
-            keys = {'wav', 'bis', 'map', 'co', 'hr', 'sv', 'nmb_m0', 'nmb_m1',...
+            keys = {'wav', 'bis', 'map', 'co', 'hr', 'sv', 'tpr', 'nmb_m0', 'nmb_m1',...
                 'nmb_m2', 'nmb_m3', 'cp_prop', 'cp_remi', 'c_nore', 'cp_rocu', ...
                 'ce_prop', 'ce_remi','ce_rocu', 'ce_del', 'ce_wav', 'ce_bis'};
-            values = { obj.wav, obj.bis, obj.map, obj.co, obj.hr, obj.sv, ...
+            values = { obj.wav, obj.bis, obj.map, obj.co, obj.hr, obj.sv, obj.tpr, ...
                 obj.nmb_m0, obj.nmb_m1, obj.nmb_m2, obj.nmb_m3, ...
                 obj.cp_prop_arr, obj.cp_remi_arr, obj.c_nore_arr, ...
                 obj.cp_rocu_arr, obj.ce_prop_arr, obj.ce_remi_arr, obj.ce_rocu_arr, ...
@@ -587,7 +587,7 @@ classdef Patient < handle
             % Adding the effect of stimuli
             if ~isempty(obj.disturbance_model)
                 interval = min(t_sim, length(obj.hr_dis) - obj.time);
-                tpr_interv = (tpr_interv*hr_interv + obj.map_dis(obj.time + 1 : obj.time + 1 + interval)/sv_interv)/...
+                tpr_interv = (tpr_interv.*hr_interv + obj.map_dis(obj.time + 1 : obj.time + 1 + interval)./sv_interv)./...
                     (hr_interv + obj.hr_dis(obj.time + 1 : obj.time + 1 + interval));
                 hr_interv = hr_interv + obj.hr_dis(obj.time + 1 : obj.time + 1 + interval);
             end
@@ -696,7 +696,7 @@ classdef Patient < handle
                 [wav_interv] = obj.compute_WAV(ce_delayed, ce_remi_sim, t_sim);
                 if ~isempty(obj.disturbance_model)
                     interval = min(t_s, length(obj.doh_dis) - obj.time);
-                    wav_interv = wav_interv + obj.doh_dis(obj.time + 1: obj.time + 1 + interval);
+                    wav_interv = wav_interv + obj.doh_dis(obj.time + 1: obj.time + interval);
                     wav_interv = max(0, min(100, wav_interv));
                 end
                 elems = wav_interv;
@@ -713,7 +713,7 @@ classdef Patient < handle
                     t = 0:1:size(obj.doh_dis)-1;
                     [delayed_disturb,~,~ ] = lsim(dbis, obj.doh_dis, t);
                     interval = min(t_s, length(delayed_disturb) - obj.time);
-                    bis_interv = bis_interv + delayed_disturb(obj.time + 1: obj.time + 1 +interval);
+                    bis_interv = bis_interv + delayed_disturb(obj.time + 1: obj.time + interval);
                     bis_interv = max(0, min(100, bis_interv));
                 end
                 elems = bis_interv;

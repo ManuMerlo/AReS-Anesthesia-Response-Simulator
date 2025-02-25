@@ -1,4 +1,7 @@
 classdef SimulatorConcentration < Simulator & handle
+    %{
+    In this class, we use TCI objects to compute infusion rates of each drug based on the target concentration.
+    %}
     properties
         tci_prop = [];
         tci_remi = [];
@@ -25,18 +28,20 @@ classdef SimulatorConcentration < Simulator & handle
         function initialize_simulation(obj, patient_data, t_sim, t_s, varargin)
         % Initialize the simulation with the given parameters.
         % Parameters:
-        %   patient_data: patient data [height, weight, age, gender, E0, k_d , delay, C50P, gammaP, rms_nonlin] [array]
+        %   patient_data: patient data [height, weight, age, gender, E0, k_d , delay, C50P, gammaP] [array]
         %   t_sim: simulation time [double]
         %   t_s: sampling time [double]
         %   varargin: optional arguments
         %      opiates: opiates [bool]
         %      blood_sampling: blood sampling [string]
+        %      internal_states : The internal states of the patient
+        %      output_init: The initial values for map, hr, sv
         %      interaction: interaction [Interaction]
         %      doh_measure: depth of hypnosis measure [DoHMeasure]
         %      stimuli: stimuli [array]
         %      volume_status: volume status [VolumeStatus]
         %      pk_models: pharmacokinetic model for propofol, remifentanil, norepinephrine and rocuronium [Model]
-        %      pd_models: pharmacodynamic model for propofol, remifentanil in TCI [Model]
+        %      pd_models: pharmacodynamic model for propofol, remifentanil [Model]
         %      pk_models_TCI: pharmacokinetic model for propofol, remifentanil, norepinephrine and rocuronium in TCI [Model]
         %      pd_models_TCI: pharmacodynamic model for propofol, remifentanil in TCI [Model]
         %      patient_data_TCI: patient data for TCI [array]
@@ -159,7 +164,7 @@ classdef SimulatorConcentration < Simulator & handle
         %      stimuli: stimuli [array]
         %      volume_status: volume status [VolumeStatus]
         %      pk_models: pharmacokinetic model for propofol, remifentanil, norepinephrine and rocuronium [Model]
-        %      pd_models: pharmacodynamic model for propofol, remifentanil in TCI [Model]
+        %      pd_models: pharmacodynamic model for propofol, remifentanil [Model]
         %      pk_models_TCI: pharmacokinetic model for propofol, remifentanil, norepinephrine and rocuronium in TCI [Model]
         %      pd_models_TCI: pharmacodynamic model for propofol, remifentanil in TCI [Model]
 
@@ -236,7 +241,7 @@ classdef SimulatorConcentration < Simulator & handle
         function init_simulation_from_data(obj, data, t_sim, t_s, varargin)
         % Initialize the simulation with the given patient data.
         % Parameters:
-        %   data: patient data [height, weight, age, gender, E0, k_d , delay, C50P, gammaP, rms_nonlin] [array]
+        %   data: patient data [height, weight, age, gender, E0, k_d , delay, C50P, gammaP] [array]
         %   t_sim: simulation time [double]
         %   t_s: sampling time [double]
         %   varargin: optional arguments 
@@ -248,7 +253,7 @@ classdef SimulatorConcentration < Simulator & handle
         %       stimuli: stimuli [array]
         %       volume_status: volume status [VolumeStatus]
         %       pk_models: pharmacokinetic model for propofol, remifentanil, norepinephrine and rocuronium [Model]
-        %       pd_models: pharmacodynamic model for propofol, remifentanil in TCI [Model]
+        %       pd_models: pharmacodynamic model for propofol, remifentanil [Model]
         %       pk_models_TCI: pharmacokinetic model for propofol, remifentanil, norepinephrine and rocuronium in TCI [Model]
         %       pd_models_TCI: pharmacodynamic model for propofol, remifentanil in TCI [Model]
         %       patient_data_TCI: patient data for TCI [array]
@@ -303,10 +308,10 @@ classdef SimulatorConcentration < Simulator & handle
         function run_complete_simulation(obj, t_prop, t_remi, t_nore, t_rocu)
         % Run the complete simulation with the given parameters.
         % Parameters:
-        %   t_prop: propofol concentrations targets for the TCI in [µg/ml] [array]
-        %   t_remi: remifentanil concentrations targets for the TCI in [ng/ml] [array]
-        %   t_nore: norepinephrine concentrations targets for the TCI in [ng/ml] [array]
-        %   t_rocu: rocuronium concentrations targets for the TCI in [ng/ml] [array]
+        %   t_prop: propofol concentrations targets for the TCI in [µg/mL] [array]
+        %   t_remi: remifentanil concentrations targets for the TCI in [ng/mL] [array]
+        %   t_nore: norepinephrine concentrations targets for the TCI in [ng/mL] [array]
+        %   t_rocu: rocuronium concentrations targets for the TCI in [µg/mL] [array]
 
             obj.check_run_inputs(t_prop, t_remi, t_nore, t_rocu);
 
@@ -318,16 +323,16 @@ classdef SimulatorConcentration < Simulator & handle
         function one_step_simulation(obj, t_prop, t_remi, t_nore, t_rocu)
         % Run one step of the simulation with the given parameters.
         % Parameters:
-        %   t_prop: propofol concentrations targets for the TCI in [µg/ml] [float]
-        %   t_remi: remifentanil concentrations targets for the TCI in [ng/ml] [float]
-        %   t_nore: norepinephrine concentrations targets for the TCI in [ng/ml] [float]
-        %   t_rocu: rocuronium concentrations targets for the TCI in [ng/ml] [float]
+        %   t_prop: propofol concentrations targets for the TCI in [µg/mL] [float]
+        %   t_remi: remifentanil concentrations targets for the TCI in [ng/mL] [float]
+        %   t_nore: norepinephrine concentrations targets for the TCI in [ng/mL] [float]
+        %   t_rocu: rocuronium concentrations targets for the TCI in [µg/mL] [float]
 
             if isempty(obj.current_patient)
                 error('No patient data found. Please add the data for a simulation first.');
             end
 
-            t_nore = t_nore * 1000 / obj.nore_molweight; % Norepinephrine in [nmol/L]
+            t_nore = t_nore * 1000 / obj.nore_molweight; % Norepinephrine plasma concentration in [nmol/L]
              
             obj.tci_prop.compute_infusion(1, t_prop);
             obj.tci_remi.compute_infusion(1, t_remi);

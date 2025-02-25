@@ -12,8 +12,6 @@ classdef Disturbance < handle
         min_dis_hr = 0.0
         min_dis_map = 0.0
         starts
-       
-        in_maintenance
 
         C50_prop_intubation = 8.69
         C50_rem_intubation = 4.95
@@ -23,7 +21,7 @@ classdef Disturbance < handle
     end
     
     methods
-        function obj = Disturbance(t_sim, disturbances, in_maintenance)
+        function obj = Disturbance(t_sim, disturbances)
         % Initialize the Disturbance class
         % Parameters:
         %   t_sim: the total simulation time
@@ -39,8 +37,8 @@ classdef Disturbance < handle
             obj.disturbances = disturbances;
             obj.starts = containers.Map('KeyType', 'double', 'ValueType', 'any');
 
-            % Distinguish the validation of the sequence of disturbances between induction and maintenance
-            obj.in_maintenance = in_maintenance;
+            % % Distinguish the validation of the sequence of disturbances between induction and maintenance
+            % obj.in_maintenance = in_maintenance;
 
             % Validate the sequence of disturbances
             obj.validate_sequence_disturbances();
