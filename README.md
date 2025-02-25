@@ -1,7 +1,9 @@
 # AReS - Anesthesia Response Simulator
 
 This repository contains the source code for AReS (Anesthesia Response Simulator), a comprehensive anesthesia patient simulator designed to mimic the response of a patient undergoing total intravenous anesthesia (TIVA) with four commonly used drugs: propofol, remifentanil, norepinephrine, and rocuronium. The simulator is available in both Python and MATLAB versions.
+The methods for developing AReS and several analysis to examine its performance are provided in the following reference: 
 
+Hosseinirad, Sara and Merlo, Manuela and Trovò, Francesco and Tognoli, Emiliano and Metelli, Alberto Maria and Dumont, Guy A., Ares: A Patient Simulator to Facilitate Testing of Automated Anesthesia. Available at SSRN: http://dx.doi.org/10.2139/ssrn.5126322
 ## Features
 
 * **Pharmacokinetic/Pharmacodynamic (PK/PD) Modeling**: AReS utilizes population-based and subject-specific PK/PD models to predict drug effects on various physiological parameters.

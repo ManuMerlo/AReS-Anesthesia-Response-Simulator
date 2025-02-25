@@ -10,11 +10,8 @@ Open-source simulator for modeling patient responses under anesthesia.
 `ARes-Anesthesia-Response-Simulator/python`
 3. **Installation**: Install the AReS package using `pip`:
    ```bash
-   pip install AReS
+   pip install git+https://github.com/ManuMerlo/AReS-Anesthesia-Response-Simulator.git@main#subdirectory=python
    ```
 3. **Usage**: Import the AReS module in your Python script and use its functions to create and run simulations. Refer to the documentation and examples in the Python folder for details.
-
-
-## Examples
 
 Example scripts demonstrating how to use AReS for different simulation scenarios are provided in notebooks folder.
