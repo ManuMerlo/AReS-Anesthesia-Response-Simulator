@@ -528,8 +528,11 @@ class Patient:
                                    hr_interval + self._hr_dis[self._time: self._time + interval])
             hr_interval = hr_interval + self._hr_dis[self._time: self._time + interval]
 
-        co_interval = hr_interval * sv_interval / 1000 + co_nore
-        map_interval = tpr_interval * co_interval * 1000 + map_nore
+        co_interval = hr_interval * sv_interval / 1000
+        map_interval = tpr_interval * co_interval * 1000
+
+        co_interval = co_interval + co_nore
+        map_interval = map_interval + map_nore
 
         # Add the effect of blood volume status on the stroke volume
         if self._volume_status is not None and self._time in self._volume_status.keys():
