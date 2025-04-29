@@ -23,7 +23,7 @@ class Patient:
                  doh_measure: DoHMeasure = DoHMeasure.BOTH,
                  disturbance_model: Disturbance = None,
                  volume_status: dict = None,
-                 seed=None):
+                 seed_variability=None):
 
         # Patient demographic parameters
         self._height = data[0]
@@ -130,9 +130,9 @@ class Patient:
 
             self._hemodynamic_variables = [base_tpr, base_sv, base_hr, 0, 0]
         else:
-            if seed is not None:
+            if seed_variability is not None:
                 # Add interpatient variability to the hemodynamic variables if seed is not None
-                self._pd_hemo.interpatient_variability(seed)
+                self._pd_hemo.interpatient_variability(seed_variability)
             self._hemodynamic_variables = [self._pd_hemo.base_tpr, self._pd_hemo.base_sv, self._pd_hemo.base_hr, 0, 0]
 
         # Initialize the neuromuscular blockade model

@@ -5,7 +5,7 @@ import numpy as np
 from .utils.enums import DisturbanceType
 
 class Disturbance:
-    def __init__(self, t_sim, disturbances=None, in_maintenance=False):
+    def __init__(self, t_sim, disturbances=None, in_maintenance=False, seed=None, worst_case=False):
         """
         Initialize the Disturbance class.
         :param t_sim: simulation time.
@@ -14,6 +14,9 @@ class Disturbance:
         :type disturbances: dict
         :param in_maintenance: flag to distinguish the validation of the sequence of disturbances between induction and maintenance.
         :type in_maintenance: bool
+        :param seed: seed for reproducibility.
+        :type seed: int
+        :param worst_case: flag to indicate if the worst case should be used.
 
         """
         self._t_sim = t_sim
@@ -37,6 +40,11 @@ class Disturbance:
         self._gamma_intubation = 3.22
         self._epsilon_intubation = 0.11
 
+        self._worst_case = worst_case
+
+        if seed is not None:
+            np.random.seed(seed)
+
     def get_disturbances(self, time: int, cp_prop: float = 0, cp_remi: float = 0):
         """
         Get the disturbances, compute the values of doh and CO if time is the start of a disturbance.
@@ -55,7 +63,7 @@ class Disturbance:
             self._min_dis_doh = 0.2 * delta_values[0]  # 20% of the delta value
             self._min_dis_hr = 0.2 * delta_values[1]  # 20% of the delta value
             self._min_dis_map = 0.2 * delta_values[2]  # 20% of the delta value
-            p, w = self._generate_coeff(cp_prop, cp_remi)
+            p, w = self._generate_coeff(cp_prop, cp_remi) if not self._worst_case else (1, 1)
             # If the probability of no response is 1 the disturbance amplitude is the minimum disturbance
             delta_doh = self._min_dis_doh + (delta_values[0] - self._min_dis_doh) * w
             delta_hr = self._min_dis_hr + (delta_values[1] - self._min_dis_hr) * w

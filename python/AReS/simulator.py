@@ -195,7 +195,9 @@ class Simulator:
                                stimuli=None,
                                volume_status=None,
                                bring_to_maintenance=False,
-                               seed=None):
+                               seed_variability=None,
+                               seed_disturbance=None,
+                               worst_case=False):
         """
         Initialize the simulation with given patient data and simulation parameters.
         :param patient_data: The patient data [height, weight, age, gender, E0, k_d , delay, C50P, gamma]
@@ -226,8 +228,12 @@ class Simulator:
         :type volume_status: dict
         :param bring_to_maintenance: True if the patient should be brought to a maintenance state with PID control
         :type bring_to_maintenance: bool
-        :param seed: seed for the variability of the patient hemodynamics
-        :type seed: int
+        :param seed_variability: seed for the variability of the patient hemodynamics
+        :type seed_variability: int
+        :param seed_disturbance: seed for the disturbance model
+        :type seed_disturbance: int
+        :param worst_case: True if the disturbances should be set to the worst case
+        :type worst_case: bool
         """
 
         # Setup patient
@@ -246,7 +252,7 @@ class Simulator:
             doh_measure=doh_measure,
             disturbance_model=None,
             volume_status=None,
-            seed=seed
+            seed_variability=seed_variability
         )
 
         # Set simulation parameters
@@ -260,7 +266,7 @@ class Simulator:
             self.volume_status_starts = None
             self._bring_patient_to_maintenance(t_s, doh_measure)
 
-        disturbance_model = Disturbance(t_sim, stimuli, bring_to_maintenance) if stimuli is not None else None
+        disturbance_model = Disturbance(t_sim, stimuli, bring_to_maintenance, seed_disturbance, worst_case) if stimuli is not None else None
         self._current_patient.set_disturbance_model(disturbance_model)
         self._current_patient.set_volume_status(volume_status)
 
@@ -302,7 +308,9 @@ class Simulator:
                                   stimuli=None,
                                   volume_status=None,
                                   bring_to_maintenance=False,
-                                  seed=None):
+                                  seed_variability=None,
+                                  seed_disturbance=None,
+                                  worst_case=False):
         """
         Initialize the simulation using patient data from the file in the 'parameters' folder.
         :param id_patient: The index of the patient to simulate
@@ -333,8 +341,12 @@ class Simulator:
         :type volume_status: dict
         :param bring_to_maintenance: True if the patient should be brought to a maintenance state with PID control
         :type bring_to_maintenance: bool
-        :param seed: seed for the variability of the patient hemodynamics
-        :type seed: int
+        :param seed_variability: seed for the variability of the patient hemodynamics
+        :type seed_variability: int
+        :param seed_disturbance: seed for the disturbance model
+        :type seed_disturbance: int
+        :param worst_case: True if the disturbances should be set to the worst case
+        :type worst_case: bool
         """
         if id_patient < 0 or id_patient > 43:
             raise ValueError("Patient index out of range")
@@ -357,7 +369,9 @@ class Simulator:
                                     stimuli,
                                     volume_status,
                                     bring_to_maintenance,
-                                    seed)
+                                    seed_variability,
+                                    seed_disturbance,
+                                    worst_case)
 
     def init_simulation_from_data(self, data, t_sim, t_s=5,
                                   opiates=None, blood_sampling=None,
@@ -370,7 +384,9 @@ class Simulator:
                                   stimuli=None,
                                   volume_status=None,
                                   bring_to_maintenance=False,
-                                  seed=None):
+                                  seed_variability=None,
+                                  seed_disturbance=None,
+                                  worst_case=False):
         """
         Initialize the simulation with patient parameters directly.
         :param data: The patient data [height, weight, age, gender, bmi, lbm, E0, k_d , delay, C50P, gammaP]
@@ -402,8 +418,12 @@ class Simulator:
         :type volume_status: dict
         :param bring_to_maintenance: True if the patient should be brought to a maintenance state with PID control
         :type bring_to_maintenance: bool
-        :param seed: seed for the variability of the patient hemodynamics
-        :type seed: int
+        :param seed_variability: seed for the variability of the patient hemodynamics
+        :type seed_variability: int
+        :param seed_disturbance: seed for the disturbance model
+        :type seed_disturbance: int
+        :param worst_case: True if the disturbances should be set to the worst case
+        :type worst_case: bool
         """
 
         if data is None:
@@ -419,7 +439,9 @@ class Simulator:
                                     stimuli,
                                     volume_status,
                                     bring_to_maintenance,
-                                    seed)
+                                    seed_variability,
+                                    seed_disturbance,
+                                    worst_case)
 
     def run_complete_simulation(self, u_prop: list, u_remi: list, u_nore: list, u_rocu: list):
         """
@@ -695,7 +717,9 @@ class SimulatorConcentration(Simulator):
                                stimuli=None,
                                volume_status=None,
                                bring_to_maintenance=False,
-                               seed=None,
+                               seed_variability=None,
+                               seed_disturbance=None,
+                               worst_case=False,
                                **kwargs):
 
         """
@@ -728,8 +752,12 @@ class SimulatorConcentration(Simulator):
         :type volume_status: dict
         :param bring_to_maintenance: True if the patient should be brought to a maintenance state with PID control
         :type bring_to_maintenance: bool
-        :param seed: seed for the variability of the patient hemodynamics
-        :type seed: int
+        :param seed_variability: seed for the variability of the patient hemodynamics
+        :type seed_variability: int
+        :param seed_disturbance: seed for the disturbance model
+        :type seed_disturbance: int
+        :param worst_case: True if the disturbances should be set to the worst case
+        :type worst_case: bool
         :param kwargs: Additional keyword arguments to pass to the TCI initialization
         :type kwargs: dict
         """
@@ -783,7 +811,9 @@ class SimulatorConcentration(Simulator):
                                        stimuli,
                                        volume_status,
                                        bring_to_maintenance,
-                                       seed)
+                                       seed_variability,
+                                       seed_disturbance,
+                                       worst_case,)
 
     def _bring_patient_to_maintenance(self, t_s, doh_measure):
         """
@@ -821,7 +851,9 @@ class SimulatorConcentration(Simulator):
                                   stimuli=None,
                                   volume_status=None,
                                   bring_to_maintenance=False,
-                                  seed=None,
+                                  seed_variability=None,
+                                  seed_disturbance=None,
+                                  worst_case=False,
                                   **kwargs):
         """
         Initialize the simulation using patient data from the file in the 'parameters' folder.
@@ -853,8 +885,12 @@ class SimulatorConcentration(Simulator):
         :type volume_status: dict
         :param bring_to_maintenance: True if the patient should be brought to a maintenance state with PID control
         :type bring_to_maintenance: bool
-        :param seed: seed for the variability of the patient hemodynamics
-        :type seed: int
+        :param seed_variability: seed for the variability of the patient hemodynamics
+        :type seed_variability: int
+        :param seed_disturbance: seed for the disturbance model
+        :type seed_disturbance: int
+        :param worst_case: True if the disturbances should be set to the worst case
+        :type worst_case: bool
         :param kwargs: Additional keyword arguments to pass to the TCI initialization
         :type kwargs: dict
         """
@@ -889,7 +925,9 @@ class SimulatorConcentration(Simulator):
                                     stimuli,
                                     volume_status,
                                     bring_to_maintenance,
-                                    seed,
+                                    seed_variability,
+                                    seed_disturbance,
+                                    worst_case,
                                     **kwargs)
 
     def init_simulation_from_data(self, data, t_sim, t_s=5,
@@ -903,7 +941,9 @@ class SimulatorConcentration(Simulator):
                                   stimuli=None,
                                   volume_status=None,
                                   bring_to_maintenance=False,
-                                  seed=None,
+                                  seed_variability=None,
+                                  seed_disturbance=None,
+                                  worst_case=False,
                                   **kwargs):
         """
         Initialize the simulation with patient parameters directly.
@@ -936,8 +976,12 @@ class SimulatorConcentration(Simulator):
         :type volume_status: dict
         :param bring_to_maintenance: True if the patient should be brought to a maintenance state with PID control
         :type bring_to_maintenance: bool
-        :param seed: seed for the variability of the patient hemodynamics
-        :type seed: int
+        :param seed_variability: seed for the variability of the patient hemodynamics
+        :type seed_variability: int
+        :param seed_disturbance: seed for the disturbance model
+        :type seed_disturbance: int
+        :param worst_case: True if the disturbances should be set to the worst case
+        :type worst_case: bool
         :param kwargs: Additional keyword arguments to pass to the TCI initialization
         :type kwargs: dict
         """
@@ -960,7 +1004,9 @@ class SimulatorConcentration(Simulator):
                                     stimuli,
                                     volume_status,
                                     bring_to_maintenance,
-                                    seed,
+                                    seed_variability,
+                                    seed_disturbance,
+                                    worst_case,
                                     **kwargs)
 
     def run_complete_simulation(self, t_prop: list, t_remi: list, t_nore: list, t_rocu: list):
