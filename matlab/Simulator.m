@@ -224,7 +224,9 @@ classdef Simulator < handle
             addOptional(p, 'doh_measure', []);
             addOptional(p, 'stimuli', []);
             addOptional(p, 'volume_status',[]);
-            addOptional(p, 'seed', []);
+            addOptional(p, 'seed_variability', []);
+            addOptional(p, 'seed_disturbance', []);
+            addOptional(p, 'worst_case', []);
             addOptional(p, 'output_init', []);
 
 
@@ -235,7 +237,7 @@ classdef Simulator < handle
             
             % Initialize the simulation with given patient data and simulation parameters.
             if ~isempty(p.Results.stimuli)
-                disturbance_model = Disturbance(t_sim, p.Results.stimuli);
+                disturbance_model = Disturbance(t_sim, p.Results.stimuli,p.Results.seed_disturbance, p.Results.worst_case);
             else
                 disturbance_model = [];
             end
@@ -250,7 +252,7 @@ classdef Simulator < handle
                 'dohMeasure', p.Results.doh_measure, ...
                 'disturbance_model', disturbance_model, ...
                 'volume_status', p.Results.volume_status, ...
-                'seed', p.Results.seed,...
+                'seed_variability', p.Results.seed_variability,...
                 'output_init', p.Results.output_init);
             
             obj.patients(end+1) = obj.current_patient;
@@ -298,7 +300,9 @@ classdef Simulator < handle
             addOptional(p, 'doh_measure', []);
             addOptional(p, 'stimuli', []);
             addOptional(p, 'volume_status',[]);
-            addOptional(p, 'seed', []);
+            addOptional(p, 'seed_variability', []);
+            addOptional(p, 'seed_disturbance', []);
+            addOptional(p, 'worst_case', []);
             addOptional(p, 'output_init', []);
 
             % Parse inputs, including varargin
@@ -326,7 +330,8 @@ classdef Simulator < handle
             var_param = {'opiates', p.Results.opiates, 'blood_sampling',...
                 p.Results.blood_sampling, 'internal_states', p.Results.internal_states, 'interaction', p.Results.interaction, ...
                 'doh_measure', p.Results.doh_measure, 'stimuli', p.Results.stimuli,...
-                'volume_status', p.Results.volume_status, 'seed', p.Results.seed, ...
+                'volume_status', p.Results.volume_status, 'seed_variability', p.Results.seed_variability, ...
+                'seed_disturbance', p.Results.seed_disturbance, 'worst_case', p.Results.worst_case,...
                 'output_init', p.Results.output_init};
 
             obj.initialize_simulation(patient_data, t_sim, t_s, pk_models, pd_models, var_param{:});
@@ -368,7 +373,9 @@ classdef Simulator < handle
             addOptional(p, 'doh_measure',[]);
             addOptional(p, 'stimuli', []);
             addOptional(p, 'volume_status',[]);
-            addOptional(p, 'seed', []);
+            addOptional(p, 'seed_variability', []);
+            addOptional(p, 'seed_disturbance', []);
+            addOptional(p, 'worst_case', []);
             addOptional(p, 'output_init', []);
 
 
@@ -381,7 +388,8 @@ classdef Simulator < handle
                 p.Results.blood_sampling, 'internal_states', p.Results.internal_states,...
                 'interaction', p.Results.interaction,...
                 'doh_measure', p.Results.doh_measure, 'stimuli', p.Results.stimuli, ...
-                'volume_status', 'seed', p.Results.seed, ...
+                'volume_status', 'seed_variability', p.Results.seed_variability, ...
+                'seed_disturbance', p.Results.seed_disturbance, 'worst_case', p.Results.worst_case,...
                 'output_init', p.Results.output_init};
             obj.initialize_simulation(patient_data, t_sim, t_s, pk_models, pd_models, var_param{:});
 

@@ -6,7 +6,7 @@ function main()
 
         simulator = Factory.createSimulator(SimulatorMode.Infusion);
 
-        for k = 1:44
+        for k = 1:5
             disp('Patient id:' + string(k));
             interaction = Interaction.Surface;
             dohMeasure = DoHMeasure.Both;
@@ -17,9 +17,7 @@ function main()
             pk_models = containers.Map({'prop', 'remi'}, {Model.Eleveld, Model.Eleveld});
             pd_models = containers.Map({'prop', 'remi'}, {Model.PATIENT_SPECIFIC, Model.Eleveld});
 
-            seed = k;
-
-            var = {'opiates', true, 'blood_sampling', BloodSampling.ARTERIAL,'interaction', interaction, 'doh_measure', dohMeasure,'pk_models', pk_models, 'pd_models', pd_models};
+            var = {'stimuli',stimuli,'opiates', true, 'blood_sampling', BloodSampling.ARTERIAL,'interaction', interaction, 'doh_measure', dohMeasure,'pk_models', pk_models, 'pd_models', pd_models,'seed_disturbance',42};
 
             simulator.init_simulation_from_file(k,t_sim,t_s,var{:});
 
@@ -53,7 +51,7 @@ function main()
         path = './csv/infusion/';
         filename = strcat('pk_', model_prop_pk_str(1),'_', pd_model_remi_pk_str(1), '_pd_', model_prop_pd_str(1), '_', pd_model_remi_pd_str(1), '_', inter, '.csv');
         simulator.save_to_csv(path,filename);
-        % simulator.plot_simulation();
+        simulator.plot_simulation();
     end
 
     function step_by_step_simulation(stimuli,volume_status)
@@ -76,7 +74,7 @@ function main()
         var = {'opiates', true, 'blood_sampling', BloodSampling.ARTERIAL,...
             'interaction', interaction, 'doh_measure', dohMeasure,...
             'stimuli', stimuli, 'volume_status', vs, 'pk_models', ...
-            pk_models, 'pd_models', pd_models, 'seed', seed};
+            pk_models, 'pd_models', pd_models};
         simulator.init_simulation_from_file(k,t_sim,t_s,var{:});
         
         u_prop = ones(t_sim,1) * 0.2;
@@ -206,7 +204,7 @@ function main()
         var = {'opiates', true, 'blood_sampling', BloodSampling.ARTERIAL, 'interaction',...
             interaction, 'doh_measure', dohMeasure, 'stimuli', stimuli, 'modes_TCI',...
             modes_TCI, 'volume_status', vs, 'pk_models', pk_models, 'pd_models',...
-            pd_models, 'pk_models_TCI', pk_models_TCI, 'pd_models_TCI', pd_models_TCI,'output_init',output_init,'seed',seed};
+            pd_models, 'pk_models_TCI', pk_models_TCI, 'pd_models_TCI', pd_models_TCI,'output_init',output_init};
         simulator.init_simulation_from_file(k,t_sim,t_s,var{:});
 
         target_prop = ones(t_sim, 1);
@@ -307,9 +305,9 @@ volume_status(1200) = VolumeStatus.Hypovolemia;
 % volume_status = [];
 
 % step_by_step_simulation(stimuli, volume_status);
-% complete_simulation(stimuli, volume_status);
+complete_simulation(stimuli, volume_status);
 % complete_simulation_TCI(stimuli, volume_status);
-step_by_step_simulation_TCI(stimuli, volume_status);
+% step_by_step_simulation_TCI(stimuli, volume_status);
 
 
 % file1 = '/Users/manuelamerlo/Documents/psm_v2/simulations/infusion_rates/target_concentrations/pk_Eleveld_pd_Schnider_off_TCI_pk_Eleveld_pd_Schnider.csv';

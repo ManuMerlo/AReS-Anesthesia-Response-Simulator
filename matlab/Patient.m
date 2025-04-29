@@ -119,7 +119,7 @@ classdef Patient < handle
             addOptional(p, 'dohMeasure', DoHMeasure.Both);
             addOptional(p, 'disturbance_model', []);
             addOptional(p, 'volume_status', []);
-            addOptional(p, 'seed', []);
+            addOptional(p, 'seed_variability', []);
 
             % Parse the inputs
             parse(p, data, varargin{:});
@@ -256,8 +256,8 @@ classdef Patient < handle
 
             else
                 %  # Add interpatient variability to the hemodynamic variables if seed is not None
-                if ~isempty(p.Results.seed)
-                    obj.pd_hemo = obj.pd_hemo.interpatient_variability(p.Results.seed);
+                if ~isempty(p.Results.seed_variability)
+                    obj.pd_hemo = obj.pd_hemo.interpatient_variability(p.Results.seed_variability);
                 end
                 obj.hemo_init(1) = obj.pd_hemo.base_tpr;
                 obj.hemo_init(2) = obj.pd_hemo.base_sv;

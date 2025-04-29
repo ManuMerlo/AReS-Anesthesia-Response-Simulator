@@ -1,5 +1,4 @@
 % matlab version of the disturbance class
-
 classdef Disturbance < handle
     properties (Access = private)
         t_sim
@@ -18,16 +17,23 @@ classdef Disturbance < handle
         gamma_intubation = 3.22
         epsilon_intubation = 0.11
 
+        worst_case = false
     end
     
     methods
-        function obj = Disturbance(t_sim, disturbances)
+        function obj = Disturbance(t_sim, disturbances, seed, worst_case)
         % Initialize the Disturbance class
         % Parameters:
         %   t_sim: the total simulation time
         %   disturbances: a cell array containing the disturbances
+        %   seed: the seed for the random number generator
+        %   worst_case: a boolean indicating if the worst case scenario is used
         % Returns:
         %   obj: the Disturbance object
+
+            if ~isempty(seed)
+                rand('twister', seed);
+            end
 
             obj.t_sim = t_sim;
             obj.doh_values = zeros(t_sim, 1);
@@ -42,6 +48,9 @@ classdef Disturbance < handle
 
             % Validate the sequence of disturbances
             obj.validate_sequence_disturbances();
+
+            obj.worst_case = worst_case;
+
         end
         
         function [doh_values, hr_values, map_values] = get_disturbances(obj, start, cp_prop, cp_remi)
@@ -62,7 +71,11 @@ classdef Disturbance < handle
                 obj.min_dis_doh = 0.2 * deltas(1);
                 obj.min_dis_hr = 0.2 * deltas(2);
                 obj.min_dis_map = 0.2*deltas(3);
-                w = obj.generate_coeff(cp_prop, cp_remi);
+                if obj.worst_case
+                    w = 1;
+                else
+                    w = obj.generate_coeff(cp_prop, cp_remi);
+                end
                 delta_doh = obj.min_dis_doh + (deltas(1) - obj.min_dis_doh) * w;
                 delta_hr = obj.min_dis_hr + (deltas(2) - obj.min_dis_hr) * w;
                 delta_map = obj.min_dis_map + (deltas(3) - obj.min_dis_map) * w;
@@ -159,13 +172,13 @@ classdef Disturbance < handle
         % Parameters:
         %   cp_prop: plasma concentration of propofol
         %   cp_remi: plasma concentration of remifentanil
-
             prob_no_response = obj.compute_response_probability_III(cp_prop, cp_remi, obj.gamma_intubation, obj.epsilon_intubation);
             p = 1 - prob_no_response;
             % [true, false] with probability [p, 1-p]
             % 1 specifies the number of samples to return
             % true if the sample is with replacement [don't care]
-            if ~randsample([true, false], 1, true, [p, 1 - p])
+            toss = rand() < p;  % true with probability p
+            if ~toss
                 coeff = 0;
             else
                 u = rand();
