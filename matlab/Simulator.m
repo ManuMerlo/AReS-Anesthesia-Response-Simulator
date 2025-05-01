@@ -140,6 +140,11 @@ classdef Simulator < handle
             patient_phase = obj.current_patient.get_patient_phase();
         end
 
+        function disturbances = get_patient_disturbances(obj)
+        % Return the disturbances of the current patient:
+            disturbances = obj.current_patient.get_patient_disturbances();
+        end
+
         function privateProps = getPrivateProperties(obj)
             % Get metadata for the class
             mc = metaclass(obj);

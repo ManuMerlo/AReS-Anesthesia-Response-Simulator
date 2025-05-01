@@ -586,10 +586,10 @@ classdef Patient < handle
             
             % Adding the effect of stimuli
             if ~isempty(obj.disturbance_model)
-                interval = min(t_sim, length(obj.hr_dis) - obj.time);
-                tpr_interv = (tpr_interv.*hr_interv + obj.map_dis(obj.time + 1 : obj.time + 1 + interval)./sv_interv)./...
-                    (hr_interv + obj.hr_dis(obj.time + 1 : obj.time + 1 + interval));
-                hr_interv = hr_interv + obj.hr_dis(obj.time + 1 : obj.time + 1 + interval);
+                interval = min(length(t_sim), length(obj.hr_dis) - obj.time);
+                tpr_interv = (tpr_interv.*hr_interv + obj.map_dis(obj.time + 1 : obj.time + interval)./sv_interv)./...
+                    (hr_interv + obj.hr_dis(obj.time + 1 : obj.time + interval));
+                hr_interv = hr_interv + obj.hr_dis(obj.time + 1 : obj.time + interval);
             end
             
             co_interv = hr_interv.*sv_interv/1000;
@@ -663,7 +663,7 @@ classdef Patient < handle
             % the Propofol and Remifentnail plasma concentrations
 
             if ~isempty(obj.disturbance_model)
-                [obj.doh_dis, obj.hr_dis, obj.map_dis] = obj.disturbance_model.get_disturbances(obj.time, cp_prop_sim(end), cp_remi_sim(end));
+                [obj.doh_dis, obj.hr_dis, obj.map_dis] = obj.disturbance_model.get_disturbances(obj.time, cp_prop_sim(1), cp_remi_sim(1));
             end
 
             % Compute effect-site concentrations of Propofol and  Remifentanil
@@ -695,8 +695,8 @@ classdef Patient < handle
             if obj.dohMeasure == DoHMeasure.Wav || obj.dohMeasure == DoHMeasure.Both
                 [wav_interv] = obj.compute_WAV(ce_delayed, ce_remi_sim, t_sim);
                 if ~isempty(obj.disturbance_model)
-                    interval = min(t_s, length(obj.doh_dis) - obj.time);
-                    wav_interv = wav_interv + obj.doh_dis(obj.time + 1: obj.time + interval);
+                    interval = min(length(t_sim), length(obj.doh_dis) - obj.time);
+                    wav_interv = wav_interv + obj.doh_dis(obj.time + 1 : obj.time + interval);
                     wav_interv = max(0, min(100, wav_interv));
                 end
                 elems = wav_interv;
@@ -710,9 +710,9 @@ classdef Patient < handle
                 [bis_interv] = obj.compute_BIS(ce_delayed, ce_remi_sim, t_sim);
                 if ~isempty(obj.disturbance_model)
                     [dbis, ~ ]= obj.pd_doh.bis_sensor_dynamics();
-                    t = 0:1:size(obj.doh_dis)-1;
+                    t = linspace(0, length(obj.doh_dis) - 1, length(obj.doh_dis));
                     [delayed_disturb,~,~ ] = lsim(dbis, obj.doh_dis, t);
-                    interval = min(t_s, length(delayed_disturb) - obj.time);
+                    interval = min(length(t_sim), length(delayed_disturb) - obj.time);
                     bis_interv = bis_interv + delayed_disturb(obj.time + 1: obj.time + interval);
                     bis_interv = max(0, min(100, bis_interv));
                 end

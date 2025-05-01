@@ -6,7 +6,7 @@ function main()
 
         simulator = Factory.createSimulator(SimulatorMode.Infusion);
 
-        for k = 1:5
+        for k = 1:1
             disp('Patient id:' + string(k));
             interaction = Interaction.Surface;
             dohMeasure = DoHMeasure.Both;
@@ -15,16 +15,16 @@ function main()
             t_s = 5;
 
             pk_models = containers.Map({'prop', 'remi'}, {Model.Eleveld, Model.Eleveld});
-            pd_models = containers.Map({'prop', 'remi'}, {Model.PATIENT_SPECIFIC, Model.Eleveld});
+            pd_models = containers.Map({'prop', 'remi'}, {Model.Eleveld, Model.Eleveld});
 
             var = {'stimuli',stimuli,'opiates', true, 'blood_sampling', BloodSampling.ARTERIAL,'interaction', interaction, 'doh_measure', dohMeasure,'pk_models', pk_models, 'pd_models', pd_models,'seed_disturbance',42};
 
             simulator.init_simulation_from_file(k,t_sim,t_s,var{:});
 
-            u_prop = ones(t_sim,1) * 0.2;
-            u_remi = ones(t_sim,1) * 0.2;
-            u_nore = ones(t_sim,1) * 0.1;
-            u_rocu = ones(t_sim,1) * 0.01;
+            u_prop = ones(t_sim,1) * 0.1;
+            u_remi = ones(t_sim,1) * 0.1;
+            u_nore = ones(t_sim,1) * 0.01;
+            u_rocu = ones(t_sim,1) * 0.1;
 
             simulator.run_complete_simulation(u_prop, u_remi, u_nore, u_rocu);
             simulator.save_simulation()
@@ -290,11 +290,11 @@ addpath('simulations')
 % Initialize the containers.Map
 stimuli = containers.Map('KeyType', 'double', 'ValueType', 'any');
 
-% Add stimuli entries as structures
-stimuli(12*60) = struct('disturbanceType', DisturbanceType.SKIN_MANIPULATION, 'duration', 10 * 60, 'deltas', [5, 5, 10]);
-stimuli(6*60)  = struct('disturbanceType', DisturbanceType.INCISION,          'duration', 5 * 60,  'deltas', [10, 10, 20]);
-stimuli(1*60)  = struct('disturbanceType', DisturbanceType.INTUBATION,        'duration', 3 * 60,  'deltas', [10, 10, 20]);
-stimuli(23*60) = struct('disturbanceType', DisturbanceType.SUTURE,            'duration', 5 * 60,  'deltas', [2, 2, 4]);
+% Add stimuli entries as structure
+stimuli(5*60)  = struct('disturbanceType', DisturbanceType.INCISION,          'duration', 2 * 60,  'deltas', [10, 10, 20]);
+stimuli(1*60)  = struct('disturbanceType', DisturbanceType.INTUBATION,        'duration', 2 * 60,  'deltas', [10, 10, 20]);
+stimuli(10*60) = struct('disturbanceType', DisturbanceType.SKIN_MANIPULATION, 'duration', 30, 'deltas', [5, 5, 10]);
+stimuli(21*60) = struct('disturbanceType', DisturbanceType.SUTURE,            'duration', 5 * 60,  'deltas', [2, 2, 4]);
 
 volume_status = containers.Map('KeyType', 'double', 'ValueType', 'any');
 volume_status(200) = VolumeStatus.Hypovolemia;
