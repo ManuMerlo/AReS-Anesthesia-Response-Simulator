@@ -164,6 +164,13 @@ class Simulator:
         """
         return self._current_patient.get_patient_phase()[0]
 
+    def get_patient_disturbances(self):
+        """
+        :returns: Get the patient disturbances for doh, hr and map
+        :rtype: dict
+        """
+        return self._current_patient.get_patient_disturbances()
+
     def get_patient_results(self, num_simulation: int = None):
         """
         Get the patient records for the given index number of simulation.

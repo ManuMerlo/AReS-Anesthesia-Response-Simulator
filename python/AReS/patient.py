@@ -274,10 +274,10 @@ class Patient:
 
     def get_patient_disturbances(self):
         """
-        :returns: The disturbances of the patient for the doh and co.
+        :returns: The disturbances of the patient for the doh, hr, and map.
         :rtype: dict
         """
-        return {'doh': self._doh_dis, 'hr': self._hr_dis, 'map': self._map_dis}
+        return {'doh_dis': self._doh_dis, 'hr_dis': self._hr_dis, 'map_dis': self._map_dis}
 
     def get_patient_phase(self):
         """
@@ -630,7 +630,7 @@ class Patient:
             wav_interval = np.array(self._compute_WAV(ce_delayed_prop, ce_remi_sim, t), dtype=np.float64)
             if self._disturbance_model is not None:
                 interval = min(t_s, len(self._doh_dis) - self._time)
-                wav_interval += self._doh_dis[self._time: self._time + interval]
+                wav_interval = wav_interval + self._doh_dis[self._time: self._time + interval]
                 wav_interval = np.clip(wav_interval, 0, 100)
         else:
             wav_interval = np.zeros(len(t))
@@ -645,7 +645,7 @@ class Patient:
                 time = np.linspace(0, len(self._doh_dis) - 1, len(self._doh_dis))
                 _, delayed_disturb, _ = signal.lsim(dbis, self._doh_dis, time)
                 interval = min(t_s, len(delayed_disturb) - self._time)
-                bis_interval += delayed_disturb[self._time: self._time + interval]
+                bis_interval = bis_interval + delayed_disturb[self._time: self._time + interval]
                 bis_interval = np.clip(bis_interval, 0, 100)
         else:
             bis_interval = np.zeros(len(t))

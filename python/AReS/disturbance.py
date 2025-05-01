@@ -1,8 +1,11 @@
+import math
+
 from scipy import stats
 
 import numpy as np
 
 from .utils.enums import DisturbanceType
+
 
 class Disturbance:
     def __init__(self, t_sim, disturbances=None, in_maintenance=False, seed=None, worst_case=False):
@@ -43,6 +46,7 @@ class Disturbance:
         self._worst_case = worst_case
 
         if seed is not None:
+            #  print(f"Seed: {seed}")
             np.random.seed(seed)
 
     def get_disturbances(self, time: int, cp_prop: float = 0, cp_remi: float = 0):
@@ -74,7 +78,7 @@ class Disturbance:
             elif dis_type == DisturbanceType.INCISION:
                 self._compute_disturbance_incision(time, duration, [delta_doh, delta_hr, delta_map])
             elif dis_type == DisturbanceType.SKIN_MANIPULATION:
-                self._compute_disturbance_skin_manipulation(time, duration, delta_values, w)
+                self._compute_disturbance_skin_manipulation(time, duration, [delta_doh, delta_hr, delta_map], w)
             elif dis_type == DisturbanceType.SUTURE:
                 self._compute_disturbance_suture(time, duration, [delta_doh, delta_hr, delta_map])
 
@@ -181,11 +185,17 @@ class Disturbance:
         p = 1 - prob_no_response
         # True with probability p
         # False with probability 1 - p
-        if not np.random.choice([True, False], p=[p, 1 - p]):
+
+        # print(f"p: {p}")
+
+        if np.random.random() >= p:  # This is equivalent to np.random.choice([True, False], p=[p, 1 - p])
+            # print("coeff = 0")
             return p, 0
 
-        u = np.random.uniform(0, 1)
+        u = np.random.random() * 1
         coeff = self.inverse_cdf_custom(u, p)
+        # print(f"u: {u}, coeff: {coeff}")
+
         return p, coeff
 
     def _compute_disturbance_intubation(self, start, duration, delta_values):
@@ -202,24 +212,26 @@ class Disturbance:
         # mu = log(mode) + sigma^2
         # scale = e^(mu) = e^(log(t_peak) + sigma^2) = t_peak * e^(sigma^2)
 
-        sigma = 0.2 + np.random.uniform(-0.1, 0.1)
+        sigma = 0.2 + (0.1 - (-0.1)) * np.random.random() - 0.1
         mode = duration
         mu = np.log(mode) + sigma ** 2
 
-        upper_range = int(np.exp(mu + 4 * sigma))
+        upper_range = math.ceil(np.exp(mu + 4 * sigma))
 
-        time = np.linspace(start, start + upper_range, upper_range)
-        end = min(upper_range, self._t_sim - start)
-        lognorm = stats.lognorm.pdf(time - start, sigma, scale=np.exp(mu))[0:end]
+        end = min(self._t_sim - start, upper_range)
+        time = np.linspace(start, start + end, end)
+        lognorm = stats.lognorm.pdf(time - start, sigma, scale=np.exp(mu))
 
         # max = np.exp(-mu+sigma**2/2)/(sigma*np.sqrt(2*math.pi))
         peak_doh = lognorm / np.max(lognorm) * delta_values[0]
         peak_hr = lognorm / np.max(lognorm) * delta_values[1]
         peak_map = lognorm / np.max(lognorm) * delta_values[2]
 
-        self.doh_values[start:start + end] += peak_doh
-        self.hr_values[start:start + end] += peak_hr
-        self.map_values[start:start + end] += peak_map
+        self.doh_values[start:start + end] = self.doh_values[start:start + end] + peak_doh
+        self.hr_values[start:start + end] = self.hr_values[start:start + end] + peak_hr
+        self.map_values[start:start + end] = self.map_values[start:start + end] + peak_map
+
+        # print(f'range: {start} - {start + end}')
 
     def _compute_disturbance_incision(self, start, duration, delta_values):
         """
@@ -241,9 +253,12 @@ class Disturbance:
         sigma = 0.1 * duration * 2
         gaussian = stats.norm.pdf(time - start, peak_time, sigma)
 
-        self.doh_values[start:start + duration] += gaussian / np.max(gaussian) * delta_values[0]
-        self.hr_values[start:start + duration] += gaussian / np.max(gaussian) * delta_values[1]
-        self.map_values[start:start + duration] += gaussian / np.max(gaussian) * delta_values[2]
+        self.doh_values[start:start + duration] = self.doh_values[start:start + duration] + gaussian / np.max(
+            gaussian) * delta_values[0]
+        self.hr_values[start:start + duration] = self.hr_values[start:start + duration] + gaussian / np.max(gaussian) * \
+                                                 delta_values[1]
+        self.map_values[start:start + duration] = self.map_values[start:start + duration] + gaussian / np.max(
+            gaussian) * delta_values[2]
 
         # S-curve decay after the end of incision
         decay_start = start + duration
@@ -255,9 +270,17 @@ class Disturbance:
         steepness = 5
         s_curve = 0.5 * (1 - np.tanh((time - (decay_start + inflection_point)) / (inflection_point / steepness)))
 
-        self.doh_values[decay_start:self._t_sim] += s_curve[:self._t_sim - decay_start] * delta_values[0]
-        self.hr_values[decay_start:self._t_sim] += s_curve[:self._t_sim - decay_start] * delta_values[1]
-        self.map_values[decay_start:self._t_sim] += s_curve[:self._t_sim - decay_start] * delta_values[2]
+        self.doh_values[decay_start:self._t_sim] = self.doh_values[decay_start:self._t_sim] + s_curve[
+                                                                                              :self._t_sim - decay_start] * \
+                                                   delta_values[0]
+        self.hr_values[decay_start:self._t_sim] = self.hr_values[decay_start:self._t_sim] + s_curve[
+                                                                                            :self._t_sim - decay_start] * \
+                                                  delta_values[1]
+        self.map_values[decay_start:self._t_sim] = self.map_values[decay_start:self._t_sim] + s_curve[
+                                                                                              :self._t_sim - decay_start] * \
+                                                   delta_values[2]
+
+        # print(f'range: {decay_start} - {self._t_sim}')
 
     def _compute_disturbance_skin_manipulation(self, start, duration, delta_values, w):
         """
@@ -277,35 +300,48 @@ class Disturbance:
         last_index = -1
         last_duration = 0
 
-        baseline_doh = self.doh_values[start - 1] if start > 0 else self.doh_values[start]
-        baseline_hr = self.hr_values[start - 1] if start > 0 else self.hr_values[start]
-        baseline_map = self.map_values[start - 1] if start > 0 else self.map_values[start]
+        baseline_doh = self.doh_values[start]
+        baseline_hr = self.hr_values[start]
+        baseline_map = self.map_values[start]
 
-        random_starts = np.random.rand(duration) < 0.5  # 50% chance to start
-        random_modifies = np.random.rand(duration) < 0.05  # 5% chance to modify
+        random_starts = [False] * duration
+        random_modifiers = [False] * duration
+
+        for i in range(duration):
+            if np.random.random() < 0.5:
+                random_starts[i] = True
+
+        for i in range(duration):
+            if np.random.random() < 0.05:
+                random_modifiers[i] = True
+
+        # print(f"Random starts: {random_starts}")
+        # print(f"Random modifiers: {random_modifiers}")
 
         for i in range(duration):
             if disturbance[i] == 0 and random_starts[i]:
                 max_possible_duration = min(max(duration - i, 1), 180)
 
                 if max_possible_duration > 15:
-                    duration_disturbance = np.random.randint(15, max_possible_duration + 1)
+                    duration_disturbance = 15 + math.floor(np.random.random() * (max_possible_duration - 15 + 1))
                 elif max_possible_duration == 1:
                     duration_disturbance = 1
                 else:
-                    duration_disturbance = np.random.randint(1, max_possible_duration + 1)
+                    duration_disturbance = 1 + math.floor(np.random.random() * (max_possible_duration - 1 + 1))
 
                 end_idx = min(i + duration_disturbance, duration)
                 disturbance[i:end_idx] = 1  # Mark disturbance
                 last_index = i
                 last_duration = duration_disturbance
 
-                noise_doh = np.random.uniform(0, delta_values[0])
+                noise_doh = np.random.random() * delta_values[0]
                 noise_doh = self._min_dis_doh + (noise_doh - self._min_dis_doh) * w
-                noise_hr = np.random.uniform(0, delta_values[1])
+                noise_hr = np.random.random() * delta_values[1]
                 noise_hr = self._min_dis_hr + (noise_hr - self._min_dis_hr) * w
-                noise_map = np.random.uniform(0, delta_values[2])
+                noise_map = np.random.random() * delta_values[2]
                 noise_map = self._min_dis_map + (noise_map - self._min_dis_map) * w
+
+                # print(f"Noise DOH: {noise_doh}, Noise HR: {noise_hr}, Noise MAP: {noise_map}")
 
                 peak_time = duration_disturbance / 2
                 time = np.linspace(0, duration_disturbance, duration_disturbance)
@@ -314,11 +350,16 @@ class Disturbance:
                 gaussian_normalized = gaussian / np.max(gaussian)
 
                 end_global = start + end_idx
-                self.doh_values[start + i:end_global] += gaussian_normalized * noise_doh
-                self.hr_values[start + i:end_global] += gaussian_normalized * noise_hr
-                self.map_values[start + i:end_global] += gaussian_normalized * noise_map
+                self.doh_values[start + i:end_global] = self.doh_values[
+                                                        start + i:end_global] + gaussian_normalized * noise_doh
+                self.hr_values[start + i:end_global] = self.hr_values[
+                                                       start + i:end_global] + gaussian_normalized * noise_hr
+                self.map_values[start + i:end_global] = self.map_values[
+                                                        start + i:end_global] + gaussian_normalized * noise_map
 
-            elif disturbance[i] == 1 and random_modifies[i]:
+                # print(f'range case 1: {start + i} - {end_global}')
+
+            elif disturbance[i] == 1 and random_modifiers[i]:
                 duration_disturbance = max(last_duration - (i - last_index), 1)
                 end_idx = min(i + duration_disturbance, duration)
                 disturbance[i:end_idx] = 2  # Mark as modified
@@ -326,38 +367,40 @@ class Disturbance:
                 max_additional_doh = (baseline_doh + delta_values[0]) - np.max(
                     self.doh_values[start + i:start + end_idx])
                 max_decrease_doh = np.max(self.doh_values[start + i:start + end_idx] - baseline_doh)
-                noise_doh = np.random.uniform(-max_decrease_doh, max_additional_doh)
-
+                noise_doh = (max_additional_doh - (-max_decrease_doh)) * np.random.random() + (-max_decrease_doh)
                 if noise_doh < 0:
-                    noise_doh = -self._min_dis_doh + (
-                            noise_doh + self._min_dis_doh) * w if w != 0 else -self._min_dis_doh
+                    noise_doh = -self._min_dis_doh + (noise_doh + self._min_dis_doh) * w
                     max_decrease_hr = np.max(self.hr_values[start + i:start + end_idx]) - baseline_hr
-                    noise_hr = np.random.uniform(-max_decrease_hr, 0)
-                    noise_hr = -self._min_dis_hr + (noise_hr + self._min_dis_hr) * w if w != 0 else -self._min_dis_hr
+                    noise_hr = (0 - (-max_decrease_hr)) * np.random.random() + (-max_decrease_hr)
+                    noise_hr = -self._min_dis_hr + (noise_hr + self._min_dis_hr) * w
                     max_decrease_map = np.max(self.map_values[start + i:start + end_idx]) - baseline_map
-                    noise_map = np.random.uniform(-max_decrease_map, 0)
-                    noise_map = -self._min_dis_map + (
-                                noise_map + self._min_dis_map) * w if w != 0 else -self._min_dis_map
+                    noise_map = (0 - (-max_decrease_map)) * np.random.random() + (-max_decrease_map)
+                    noise_map = -self._min_dis_map + (noise_map + self._min_dis_map) * w
                 else:
-                    noise_doh = self._min_dis_doh + (noise_doh - self._min_dis_doh) * w if w != 0 else self._min_dis_doh
+                    noise_doh = self._min_dis_doh + (noise_doh - self._min_dis_doh) * w
                     max_additional_hr = (baseline_hr + delta_values[1]) - np.max(
                         self.hr_values[start + i:start + end_idx])
-                    noise_hr = np.random.uniform(0, max_additional_hr)
-                    noise_hr = self._min_dis_hr + (noise_hr - self._min_dis_hr) * w if w != 0 else self._min_dis_hr
+                    noise_hr = max_additional_hr * np.random.random()
+                    noise_hr = self._min_dis_hr + (noise_hr - self._min_dis_hr) * w
                     max_additional_map = (baseline_map + delta_values[2]) - np.max(
                         self.map_values[start + i:start + end_idx])
-                    noise_map = np.random.uniform(0, max_additional_map)
-                    noise_map = self._min_dis_map + (noise_map - self._min_dis_map) * w if w != 0 else self._min_dis_map
+                    noise_map = max_additional_map * np.random.random()
+                    noise_map = self._min_dis_map + (noise_map - self._min_dis_map) * w
+
+                # print(f"Noise DOH: {noise_doh}, Noise HR: {noise_hr}, Noise MAP: {noise_map}")
 
                 peak_time = duration_disturbance / 2
-                time = np.linspace(0, duration_disturbance, duration_disturbance, endpoint=False)
+                time = np.linspace(0, duration_disturbance, duration_disturbance)
                 sigma = 0.2 * duration_disturbance
                 gaussian = stats.norm.pdf(time, loc=peak_time, scale=sigma)
-                gaussian_normalized = gaussian / np.max(gaussian) if np.max(gaussian) != 0 else gaussian
+                gaussian_normalized = gaussian / np.max(gaussian)
 
-                self.doh_values[start + i:start + end_idx] += gaussian_normalized * noise_doh
-                self.hr_values[start + i:start + end_idx] += gaussian_normalized * noise_hr
-                self.map_values[start + i:start + end_idx] += gaussian_normalized * noise_map
+                self.doh_values[start + i:start + end_idx] = self.doh_values[
+                                                             start + i:start + end_idx] + gaussian_normalized * noise_doh
+                self.hr_values[start + i:start + end_idx] = self.hr_values[
+                                                            start + i:start + end_idx] + gaussian_normalized * noise_hr
+                self.map_values[start + i:start + end_idx] = self.map_values[
+                                                             start + i:start + end_idx] + gaussian_normalized * noise_map
 
                 self.doh_values[start + i:start + end_idx] = np.clip(self.doh_values[start + i:start + end_idx],
                                                                      baseline_doh, baseline_doh + delta_values[0])
@@ -365,6 +408,8 @@ class Disturbance:
                                                                     baseline_hr, baseline_hr + delta_values[1])
                 self.map_values[start + i:start + end_idx] = np.clip(self.map_values[start + i:start + end_idx],
                                                                      baseline_map, baseline_map + delta_values[2])
+
+                # print(f'range case 2: {start + i} - {start + end_idx}')
 
             elif disturbance[i] == 2:
                 continue
