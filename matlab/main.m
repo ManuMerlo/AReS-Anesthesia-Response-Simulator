@@ -91,26 +91,12 @@ function main()
 
         simulator.save_simulation()
 
-        % patient_data = simulator.get_patient_demographics();
-        % disp(patient_data);
-        % patient_state = simulator.get_patient_state();
-        % disp(patient_state);
-        % patient_state_history = simulator.get_patient_state_history();
-        % disp(patient_state_history);
-        % co = patient_state_history('co');
-        % disp(co)
-        % patient_phase = simulator.get_patient_phase();
-        % disp(patient_phase);
-        % 
-        % results = simulator.get_patient_results();
-        % disp(results);
-
         model_prop_pk_str = char(pk_models('prop'));
         model_prop_pd_str = char(pd_models('prop'));  
 
-
+        % path = './csv/infusion/';
         % filename = strcat('pk_', model_prop_pk_str, '_pd_', model_prop_pd_str, '_', inter,'.csv');
-        % simulator.save_to_csv(filename);
+        % simulator.save_to_csv(path, filename);
         simulator.plot_simulation();
     end
 
@@ -234,10 +220,11 @@ function main()
         model_prop_pd_str = char(pd_models('prop'));
         pd_model_remi_pd_str = char(pd_models('remi'));
 
+        path = './csv/concentration/';
         filename = strcat('pk_', model_prop_pk_str(1),'_', pd_model_remi_pk_str(1), '_pd_', model_prop_pd_str(1), '_', pd_model_remi_pd_str(1), '_', inter, '.csv');
-        simulator.save_to_csv(filename);
+        simulator.save_to_csv(path, filename);
 
-        %simulator.plot_simulation();
+        simulator.plot_simulation();
     end
 
     function compare_files(file1, file2)
