@@ -109,10 +109,10 @@ classdef TCI < handle
                     else
                         model_prop_pk = p.Results.pk_models('prop');
                     end
-                    if isempty(p.Results.pk_models('prop'))
+                    if isempty(p.Results.pd_models('prop'))
                         model_prop_pd = Model.Eleveld;
                     else
-                        model_prop_pd = p.Results.pk_models('prop');
+                        model_prop_pd = p.Results.pd_models('prop');
                     end
                     obj.tci_setting_propofol(model_prop_pk, model_prop_pd, var_pk, var_pd);
                 case Drug.Remifentanil
@@ -121,10 +121,10 @@ classdef TCI < handle
                     else
                         model_remi_pk = p.Results.pk_models('remi');
                     end
-                    if isempty(p.Results.pk_models('remi'))
+                    if isempty(p.Results.pd_models('remi'))
                         model_remi_pd = Model.Eleveld;
                     else
-                        model_remi_pd = p.Results.pk_models('remi');
+                        model_remi_pd = p.Results.pd_models('remi');
                     end
                     obj.tci_setting_remifentanil(model_remi_pk, model_remi_pd, var_pk, var_pd);
                 case  Drug.Norepinephrine
