@@ -834,7 +834,7 @@ class SimulatorConcentration(Simulator):
 
         pid = PID(kp=kp, ki=ki, kd=kd, setpoint=0.5, sample_time=t_s, output_limits=(0, 10))
 
-        measure = 'WAV' if doh_measure in [DoHMeasure.WAV, DoHMeasure.Both] else 'BIS'
+        measure = 'WAV' if doh_measure in [DoHMeasure.WAV, DoHMeasure.BOTH] else 'BIS'
         while not self._current_patient.get_patient_phase()[1]:
             doh = self.get_patient_state()[measure]
             u_prop = pid.compute(doh / 100, t_s)
