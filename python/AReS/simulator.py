@@ -289,7 +289,7 @@ class Simulator:
         kp, ki, kd = 1.187610442449273, 0.001215206797108504, 0.20413144686025936
         pid = PID(kp=kp, ki=ki, kd=kd, setpoint=0.5, sample_time=t_s)
 
-        measure = 'WAV' if doh_measure in [DoHMeasure.WAV, DoHMeasure.Both] else 'BIS'
+        measure = 'WAV' if doh_measure in [DoHMeasure.WAV, DoHMeasure.BOTH] else 'BIS'
 
         # While the patient does not reach  a steady state
         while not self._current_patient.get_patient_phase()[1]:
