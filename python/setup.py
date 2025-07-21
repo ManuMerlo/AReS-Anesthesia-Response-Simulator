@@ -21,6 +21,9 @@ setup(
     url='https://github.com/ManuMerlo/AReS-Patient-Simulator',
     packages=find_packages(),
     include_package_data=True,
+    package_data={
+        '': ['parameters/*.csv'],  # Include the CSV files
+    },
     install_requires=[
         "pandas",
         "numpy",
