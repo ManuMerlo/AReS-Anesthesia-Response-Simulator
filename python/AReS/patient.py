@@ -377,19 +377,25 @@ class Patient:
         c_nore_sim[c_nore_sim < 0] = 0
         cp_rocu_sim[cp_rocu_sim < 0] = 0
 
+        # delay in norepinephrine PK model
+        _, c_nore_delayed_sim, x_nore_delayed_sim = signal.lsim(self._pd_hemo.get_nore_delay_ss(), c_nore_sim, t,
+                                                                X0=self._x_nore_delayed)
+        c_nore_delayed_sim[c_nore_delayed_sim < 0] = 0
+
         # Update initial states
         self._x_prop = x_prop_sim[-1, :]
         self._x_remi = x_remi_sim[-1, :]
         self._x_nore = x_nore_sim[-1, :]
         self._x_rocu = x_rocu_sim[-1, :]
+        self._x_nore_delayed = x_nore_delayed_sim[-1]  # This is correct, x_nore_delayed is a 1D array
 
         # Append the plasma concentrations to the history
         self._cp_prop = np.append(self._cp_prop, cp_prop_sim[:])
         self._cp_remi = np.append(self._cp_remi, cp_remi_sim[:])
-        self._c_nore = np.append(self._c_nore, c_nore_sim[:])
+        self._c_nore = np.append(self._c_nore, c_nore_delayed_sim[:])
         self._cp_rocu = np.append(self._cp_rocu, cp_rocu_sim[:])
 
-        return cp_prop_sim, cp_remi_sim, c_nore_sim, cp_rocu_sim
+        return cp_prop_sim, cp_remi_sim, c_nore_delayed_sim, cp_rocu_sim
 
     def _compute_WAV(self, ce_delayed_prop, ce_remi_sim: np.ndarray, t: np.ndarray):
         """
@@ -475,14 +481,8 @@ class Patient:
         :rtype: tuple of np.ndarray
         """
 
-        # Norepinephrine's effect on hemodynamic variables
-        _, c_nore_delayed_sim, x_nore_delayed_sim = signal.lsim(self._pd_hemo.get_nore_delay_ss(), c_nore, t,
-                                                                X0=self._x_nore_delayed)
-        c_nore_delayed_sim[c_nore_delayed_sim < 0] = 0
-        self._x_nore_delayed = x_nore_delayed_sim[-1]  # This is correct, x_nore_delayed is a 1D array
-
-        map_nore = self._pd_hemo.hillfun(c_nore_delayed_sim, 'map')
-        co_nore = self._pd_hemo.hillfun(c_nore_delayed_sim, 'co')
+        map_nore = self._pd_hemo.hillfun(c_nore, 'map')
+        co_nore = self._pd_hemo.hillfun(c_nore, 'co')
 
         # General pharmacodynamic interaction (GPDI) model between Propofol and Remifentanil
 
